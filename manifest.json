@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Coordinate Extractor",
+  "version": "2.1",
+  "description": "Extracts coordinates from the URL and updates them, supports hotkeys.",
+  "icons": {
+    "128": "image.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "clipboardWrite",
+    "clipboardRead",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "image.png"
+  },
+  "commands": {
+    "open-extension": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Ctrl+Shift+F"
+      },
+      "description": "Open the extension popup"
+    }
+  }
+}
