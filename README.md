@@ -6,7 +6,7 @@ Coordinate Extractor is a lightweight Chrome extension that automatically extrac
 
 ## 🚀 Installation
 
-1. Download or clone this repository (including `manifest.json`, `popup.html`, `popup.js`, `background.js`, `image.png`).  
+1. Download or clone this repository (including `manifest.json`, `popup.html`, `ui.js`, `background.js`, `image.png`).  
 2. Unzip (if applicable) and note the folder location.  
 3. Open Chrome and navigate to `chrome://extensions/`.  
 4. Enable **Developer mode** (toggle in the top‑right).  
@@ -52,7 +52,7 @@ Store up to **4 coordinate sets** (slots 0–3):
 
 | Shortcut | Action |
 |----------|--------|
-| Ctrl+Shift+G (Cmd+Shift+G on Mac) | Open extension popup |
+| Ctrl+Shift+F (Ctrl+Shift+F on Mac) | Open extension popup |
 | C | Copy current coordinates |
 | V | Paste from clipboard |
 | G | Update URL with selected slot’s coordinates |

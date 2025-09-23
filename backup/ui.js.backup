@@ -79,14 +79,7 @@ const updateSavedField = (fieldId, textValue) =>
 const saveCoordinatesToSlot = (coords) => {
   if (!window.activeSavedFieldId || window.activeSavedFieldId === "saved-coords-0")
     return;
-  
-  // Format CLI string with available fields only
-  const cliParts = [`--lon ${coords.lon}`, `--lat ${coords.lat}`];
-  if (coords.zoom !== undefined) cliParts.push(`--zoom ${coords.zoom}`);
-  if (coords.pitch !== undefined) cliParts.push(`--pitch ${coords.pitch}`);
-  if (coords.bearing !== undefined) cliParts.push(`--bearing ${coords.bearing}`);
-  const formatted = cliParts.join(' ');
-  
+  const formatted = `--lon ${coords.lon} --lat ${coords.lat} --zoom ${coords.zoom} --pitch ${coords.pitch} --bearing ${coords.bearing}`;
   updateSavedField(window.activeSavedFieldId, formatted);
 };
 
@@ -185,13 +178,7 @@ const renderRecentCoordinates = () =>
         if (!recent[index]) {
           inner.textContent = `Coordinate slot ${index} ...`;
         } else {
-          // Format CLI string with available fields only
-          const cliParts = [`--lon ${recent[index].lon}`, `--lat ${recent[index].lat}`];
-          if (recent[index].zoom !== undefined) cliParts.push(`--zoom ${recent[index].zoom}`);
-          if (recent[index].pitch !== undefined) cliParts.push(`--pitch ${recent[index].pitch}`);
-          if (recent[index].bearing !== undefined) cliParts.push(`--bearing ${recent[index].bearing}`);
-          const cliStr = cliParts.join(' ');
-          
+          const cliStr = `--lon ${recent[index].lon} --lat ${recent[index].lat} --zoom ${recent[index].zoom} --pitch ${recent[index].pitch} --bearing ${recent[index].bearing}`;
           const label = recent[index].name ? recent[index].name : "";
           const fullText = label ? label + " - " + cliStr : cliStr;
           renderSlotContent(inner, fullText, recent[index].labelColor || "");
@@ -242,20 +229,6 @@ const selectSlot = (slotNumber) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   logMessage("ui.js loaded.", "info");
-  
-  // Check Chrome API availability
-  if (typeof chrome === 'undefined') {
-    logMessage("chrome API не доступен", "error");
-    return;
-  }
-  
-  if (typeof chrome.tabs === 'undefined') {
-    logMessage("chrome.tabs API не доступен", "error");
-    return;
-  }
-  
-  logMessage("chrome API доступен", "success");
-  
   renderRecentCoordinates();
   window.activeSavedFieldId = "saved-coords-0";
   window.hotkeysDisabled = false;
@@ -292,93 +265,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   
-  logMessage("выполняю chrome.tabs.query...", "info");
-  
-  // Check permissions
-  if (chrome.permissions) {
-    chrome.permissions.getAll((permissions) => {
-      logMessage("permissions: " + JSON.stringify(permissions), "info");
-    });
-  }
-  
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    // Check for Chrome API errors
-    if (chrome.runtime.lastError) {
-      logMessage("chrome.tabs.query error: " + chrome.runtime.lastError.message, "error");
-      return;
-    }
-    
-    logMessage("tabs query executed, found " + (tabs ? tabs.length : 0) + " tabs", "info");
-    
     if (!tabs || !tabs.length) {
       logMessage("no active tab found.", "error");
       return;
     }
-    
-    const tab = tabs[0];
-    logMessage("tab id: " + tab.id, "info");
-    logMessage("tab title: " + (tab.title || "no title"), "info");
-    logMessage("tab status: " + tab.status, "info");
-    logMessage("tab url: " + (tab.url || "undefined"), tab.url ? "success" : "error");
-    
-    if (!tab.url) {
-      logMessage("tab.url is undefined - check you're on http/https page", "error");
-      logMessage("if on chrome:// or special page, go to normal website", "info");
-    }
-    
-    const currentUrl = tab.url;
+    const currentUrl = tabs[0].url;
     logMessage("active tab url: " + currentUrl, "info");
     const currentUrlEl = document.getElementById("current-url");
     if (currentUrlEl) currentUrlEl.textContent = currentUrl;
-    
-    // Check if URL is valid before parsing (only for Chrome internal pages)
-    if (!currentUrl) {
-      logMessage("URL is empty - testing with sample URLs", "error");
-      
-      // Temporarily test parser with sample URLs
-      logMessage("Тестируем парсер координат...", "info");
-      const sampleUrls = [
-        "https://www.google.com/maps/@48.85891,2.2768,13.75z",
-        "https://api.mapbox.com/styles/v1/mapbox/streets-v11#13.75/48.85891/2.2768",
-        "https://www.openstreetmap.org/#map=13/48.85891/2.2768"
-      ];
-      
-      sampleUrls.forEach((testUrl, index) => {
-        const testResult = extractCoordinates(testUrl);
-        const serviceName = testUrl.includes('google.com') ? 'Google Maps' :
-                           testUrl.includes('mapbox.com') ? 'Mapbox' :
-                           testUrl.includes('openstreetmap.org') ? 'OpenStreetMap' : 'Unknown';
-        
-        if (testResult) {
-          logMessage(`✅ ${serviceName}: lat=${testResult.lat}, lon=${testResult.lon}, zoom=${testResult.zoom}`, "success");
-          if (index === 0) {
-            // Show first successful result
-            displayCoordinates(testResult);
-            const inner = document.getElementById("saved-coords-0");
-            if (inner) {
-              // Format CLI string with available fields only
-            const cliParts = [`--lon ${testResult.lon}`, `--lat ${testResult.lat}`];
-            if (testResult.zoom !== undefined) cliParts.push(`--zoom ${testResult.zoom}`);
-            if (testResult.bearing !== undefined) cliParts.push(`--bearing ${testResult.bearing}`);
-            if (testResult.pitch !== undefined) cliParts.push(`--pitch ${testResult.pitch}`);
-            const cliString = cliParts.join(' ');
-              renderSlotContent(inner, cliString);
-            }
-          }
-        } else {
-          logMessage(`❌ ${serviceName}: парсинг не удался`, "error");
-        }
-      });
-      return;
-    }
-    
-    if (currentUrl.startsWith('chrome://') || currentUrl.startsWith('chrome-extension://')) {
-      logMessage("skipping coordinate extraction for chrome internal page", "info");
-      const inner = document.getElementById("saved-coords-0");
-      if (inner) inner.textContent = "chrome internal page";
-      return;
-    }
-    
     const coords = extractCoordinates(currentUrl);
     if (coords) {
       logMessage("coordinates extracted: " + JSON.stringify(coords), "success");
@@ -421,13 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
         logMessage("clipboard text: " + text, "info");
         const coords = parseCliString(text);
         if (coords) {
-          // Format CLI string with available fields only
-          const cliParts = [`--lon ${coords.lon}`, `--lat ${coords.lat}`];
-          if (coords.zoom !== undefined) cliParts.push(`--zoom ${coords.zoom}`);
-          if (coords.pitch !== undefined) cliParts.push(`--pitch ${coords.pitch}`);
-          if (coords.bearing !== undefined) cliParts.push(`--bearing ${coords.bearing}`);
-          const formatted = cliParts.join(' ');
-          
+          const formatted = `--lon ${coords.lon} --lat ${coords.lat} --zoom ${coords.zoom} --pitch ${coords.pitch} --bearing ${coords.bearing}`;
           if (window.activeSavedFieldId && window.activeSavedFieldId !== "saved-coords-0") {
             const inner = document.getElementById(window.activeSavedFieldId);
             if (inner) {

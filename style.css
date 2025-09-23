@@ -81,7 +81,7 @@ textarea, input[type="text"] {
   border: 1px solid #ddd;
   border-radius: var(--border-radius);
   background-color: #fff;
-  color: var(--text-color); /* Добавлено свойство */
+  color: var(--text-color); /* Added property */
   font-size: 14px;
   line-height: 1.5;
   transition: border-color 0.3s, box-shadow 0.3s;
@@ -107,7 +107,7 @@ button {
   color: #fff;
   border: none;
   border-radius: var(--border-radius);
-  font-size: 18px; /* увеличенный размер шрифта */
+  font-size: 18px; /* increased font size */
   cursor: pointer;
   margin-top: 6px;
   transition: background-color 0.2s, transform 0.2s;

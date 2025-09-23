@@ -20,6 +20,15 @@ const logger = {
   error: console.error.bind(console)
 };
 
+// Utility for creating coordinate objects without default values
+function createCoordinateObject(lat, lon, zoom, bearing, pitch) {
+  const coords = { lat, lon };
+  if (zoom !== undefined && zoom !== null) coords.zoom = zoom;
+  if (bearing !== undefined && bearing !== null) coords.bearing = bearing;
+  if (pitch !== undefined && pitch !== null) coords.pitch = pitch;
+  return coords;
+}
+
 function updateActiveTabUrlWithCoordinates(coords) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs || !tabs.length) {
@@ -133,7 +142,7 @@ function updateActiveTabUrlWithCoordinates(coords) {
 function extractCoordinates(url) {
   try {
     const urlObj = new URL(url);
-    // Новый экстрактор для URL, содержащих координаты в пути после "/@"
+    // Path extractor for URLs containing coordinates after "/@"
     const pathExtractor = {
       match: (u) => u.pathname.includes("/@"),
       transform: (u) => {
@@ -145,8 +154,8 @@ function extractCoordinates(url) {
         const lat = parseFloat(segments[0]);
         const lon = parseFloat(segments[1]);
         const zoomMatch = segments[2].match(/^([0-9\.]+)/);
-        const zoom = zoomMatch ? parseFloat(zoomMatch[1]) : 0;
-        let bearing = 0, pitch = 0;
+        const zoom = zoomMatch ? parseFloat(zoomMatch[1]) : undefined;
+        let bearing, pitch;
         for (let i = 3; i < segments.length; i++) {
           if (segments[i].endsWith("h")) {
             bearing = parseFloat(segments[i].replace("h", ""));
@@ -155,11 +164,11 @@ function extractCoordinates(url) {
             pitch = parseFloat(segments[i].replace("t", ""));
           }
         }
-        return { lat, lon, zoom, bearing, pitch };
+        return createCoordinateObject(lat, lon, zoom, bearing, pitch);
       }
     };
 
-    // Попытка извлечь координаты из параметров URL
+    // Try to extract coordinates from URL parameters
     const params = new URLSearchParams(urlObj.search);
     const hashParams = new URLSearchParams(urlObj.hash.replace("#", "?"));
     let latStr = params.get("lat") || hashParams.get("lat");
@@ -168,17 +177,156 @@ function extractCoordinates(url) {
     let pitchStr = params.get("pitch") || hashParams.get("pitch");
     let bearingStr = params.get("bearing") || hashParams.get("bearing");
     if (latStr && lonStr) {
-      return {
-        zoom: parseFloat(zoomStr || "0"),
-        lat: parseFloat(latStr),
-        lon: parseFloat(lonStr),
-        bearing: parseFloat(bearingStr || "0"),
-        pitch: parseFloat(pitchStr || "0")
-      };
+      const lat = parseFloat(latStr);
+      const lon = parseFloat(lonStr);
+      const zoom = zoomStr ? parseFloat(zoomStr) : undefined;
+      const bearing = bearingStr ? parseFloat(bearingStr) : undefined;
+      const pitch = pitchStr ? parseFloat(pitchStr) : undefined;
+      return createCoordinateObject(lat, lon, zoom, bearing, pitch);
     }
-    // Массив экстракторов (новый экстрактор добавлен первым)
+    // Extended extractors for various mapping services
     const extractors = [
+      // Google Maps and Google Earth
       pathExtractor,
+      
+      // OpenStreetMap
+      {
+        match: (u) => u.hostname.includes("openstreetmap.org"),
+        transform: (u) => {
+          // Format: #map=13/48.85891/2.2768
+          if (u.hash && u.hash.includes("map=")) {
+            const mapMatch = u.hash.match(/map=([0-9\.]+)\/([0-9\.\-]+)\/([0-9\.\-]+)/);
+            if (mapMatch) {
+              return createCoordinateObject(
+                parseFloat(mapMatch[2]),
+                parseFloat(mapMatch[3]),
+                parseFloat(mapMatch[1])
+              );
+            }
+          }
+          // Format: ?mlat=48.85891&mlon=2.2768
+          if (u.searchParams.has("mlat") && u.searchParams.has("mlon")) {
+            const zoomFromHash = u.hash && u.hash.includes("map=") ? u.hash.match(/map=([0-9\.]+)/)?.[1] : undefined;
+            const zoom = zoomFromHash ? parseFloat(zoomFromHash) : undefined;
+            return createCoordinateObject(
+              parseFloat(u.searchParams.get("mlat")),
+              parseFloat(u.searchParams.get("mlon")),
+              zoom
+            );
+          }
+          return null;
+        }
+      },
+      
+      // Yandex Maps
+      {
+        match: (u) => u.hostname.includes("yandex.") && u.pathname.includes("maps"),
+        transform: (u) => {
+          // Format: ?ll=2.2768,48.85891&z=13 (note: lon,lat order!)
+          if (u.searchParams.has("ll")) {
+            const ll = u.searchParams.get("ll");
+            const coords = ll.split(",");
+            if (coords.length >= 2) {
+              const zoomParam = u.searchParams.get("z");
+              const zoom = zoomParam ? parseFloat(zoomParam) : undefined;
+              return createCoordinateObject(
+                parseFloat(coords[1]), // second element is lat
+                parseFloat(coords[0]), // first element is lon
+                zoom
+              );
+            }
+          }
+          return null;
+        }
+      },
+      
+      // Apple Maps
+      {
+        match: (u) => u.hostname.includes("maps.apple.com"),
+        transform: (u) => {
+          // Format: ?ll=48.85891,2.2768&z=13 (lat,lon order)
+          if (u.searchParams.has("ll")) {
+            const ll = u.searchParams.get("ll");
+            const coords = ll.split(",");
+            if (coords.length >= 2) {
+              const zoomParam = u.searchParams.get("z");
+              const zoom = zoomParam ? parseFloat(zoomParam) : undefined;
+              return createCoordinateObject(
+                parseFloat(coords[0]), // first element is lat
+                parseFloat(coords[1]), // second element is lon
+                zoom
+              );
+            }
+          }
+          return null;
+        }
+      },
+      
+      // Bing Maps
+      {
+        match: (u) => u.hostname.includes("bing.com") && u.pathname.includes("maps"),
+        transform: (u) => {
+          // Format: ?cp=48.85891~2.2768&lvl=13
+          if (u.searchParams.has("cp")) {
+            const cp = u.searchParams.get("cp");
+            const coords = cp.split("~");
+            if (coords.length >= 2) {
+              const levelParam = u.searchParams.get("lvl");
+              const zoom = levelParam ? parseFloat(levelParam) : undefined;
+              return createCoordinateObject(
+                parseFloat(coords[0]),
+                parseFloat(coords[1]),
+                zoom
+              );
+            }
+          }
+          return null;
+        }
+      },
+      
+      // Mapbox (specific rules)
+      {
+        match: (u) => u.hostname.includes("mapbox.com") || u.hostname.includes("api.mapbox.com"),
+        transform: (u) => {
+          // Format: #13.75/48.85891/2.2768 or #13.75/48.85891/2.2768/0/45
+          if (u.hash) {
+            const cleanHash = u.hash.replace(/^#\/?/, "");
+            const segments = cleanHash.split("/");
+            if (segments.length >= 3) {
+              const bearing = segments.length >= 4 ? parseFloat(segments[3]) : undefined;
+              const pitch = segments.length >= 5 ? parseFloat(segments[4]) : undefined;
+              return createCoordinateObject(
+                parseFloat(segments[1]),
+                parseFloat(segments[2]),
+                parseFloat(segments[0]),
+                bearing,
+                pitch
+              );
+            }
+          }
+          return null;
+        }
+      },
+      
+      // Here Maps
+      {
+        match: (u) => u.hostname.includes("here.com"),
+        transform: (u) => {
+          // Format: ?map=48.85891,2.2768,13,normal
+          if (u.searchParams.has("map")) {
+            const mapValue = u.searchParams.get("map");
+            const parts = mapValue.split(",");
+            if (parts.length >= 3) {
+              return createCoordinateObject(
+                parseFloat(parts[0]),
+                parseFloat(parts[1]),
+                parseFloat(parts[2])
+              );
+            }
+          }
+          return null;
+        }
+      },
       {
         match: (u) => u.hash.indexOf("?") !== -1,
         transform: (u) => {
@@ -187,24 +335,20 @@ function extractCoordinates(url) {
           if (hashQueryParams.has("center")) {
             const parts = decodeURIComponent(hashQueryParams.get("center")).split("/");
             if (parts.length === 3) {
-              return {
-                zoom: parseFloat(parts[0]),
-                lat: parseFloat(parts[1]),
-                lon: parseFloat(parts[2]),
-                bearing: 0,
-                pitch: 0
-              };
+              return createCoordinateObject(
+                parseFloat(parts[1]),
+                parseFloat(parts[2]),
+                parseFloat(parts[0])
+              );
             }
           } else if (hashQueryParams.has("map")) {
             const parts = decodeURIComponent(hashQueryParams.get("map")).split("/");
             if (parts.length === 3) {
-              return {
-                zoom: parseFloat(parts[0]),
-                lat: parseFloat(parts[1]),
-                lon: parseFloat(parts[2]),
-                bearing: 0,
-                pitch: 0
-              };
+              return createCoordinateObject(
+                parseFloat(parts[1]),
+                parseFloat(parts[2]),
+                parseFloat(parts[0])
+              );
             }
           }
           return null;
@@ -216,31 +360,28 @@ function extractCoordinates(url) {
           const cleanHash = u.hash.replace(/^#\/?/, "");
           const segments = cleanHash.split("/");
           if (segments.length === 3) {
-            return {
-              zoom: parseFloat(segments[0]),
-              lat: parseFloat(segments[1]),
-              lon: parseFloat(segments[2]),
-              bearing: 0,
-              pitch: 0
-            };
+            return createCoordinateObject(
+              parseFloat(segments[1]),
+              parseFloat(segments[2]),
+              parseFloat(segments[0])
+            );
           }
           if (segments.length === 4) {
-            return {
-              zoom: parseFloat(segments[0]),
-              lat: parseFloat(segments[1]),
-              lon: parseFloat(segments[2]),
-              bearing: parseFloat(segments[3]),
-              pitch: 0
-            };
+            return createCoordinateObject(
+              parseFloat(segments[1]),
+              parseFloat(segments[2]),
+              parseFloat(segments[0]),
+              parseFloat(segments[3])
+            );
           }
           if (segments.length >= 5) {
-            return {
-              zoom: parseFloat(segments[0]),
-              lat: parseFloat(segments[1]),
-              lon: parseFloat(segments[2]),
-              bearing: parseFloat(segments[3]),
-              pitch: parseFloat(segments[4])
-            };
+            return createCoordinateObject(
+              parseFloat(segments[1]),
+              parseFloat(segments[2]),
+              parseFloat(segments[0]),
+              parseFloat(segments[3]),
+              parseFloat(segments[4])
+            );
           }
           return null;
         }
@@ -260,24 +401,61 @@ function extractCoordinates(url) {
 }
 
 function parseCliString(cliString) {
+  // Use new improved parser if available
+  if (typeof window !== 'undefined' && window.CliParser) {
+    return window.CliParser.parse(cliString);
+  }
+  
+  // Fallback to original algorithm
   const parts = cliString.split(/\s+/);
   const result = {};
   for (let i = 0; i < parts.length; i++) {
     if (parts[i].startsWith("--")) {
       const key = parts[i].substring(2);
       const value = parts[i + 1];
-      result[key] = value;
+      if (value && !isNaN(parseFloat(value))) {
+        result[key] = parseFloat(value);
+      }
       i++;
     }
   }
-  return result.lon && result.lat ? result : null;
+  
+  // Return only fields that are actually present
+  if (!result.lon || !result.lat) {
+    return null;
+  }
+  
+  const coordinates = {
+    lat: result.lat,
+    lon: result.lon
+  };
+  
+  // Add optional fields only if they exist
+  if (typeof result.zoom === 'number') coordinates.zoom = result.zoom;
+  if (typeof result.bearing === 'number') coordinates.bearing = result.bearing;
+  if (typeof result.pitch === 'number') coordinates.pitch = result.pitch;
+  
+  return coordinates;
 }
 
 function displayCoordinates(coords) {
-  const coordText = `lat: ${coords.lat}, lon: ${coords.lon}, zoom: ${coords.zoom}, bearing: ${coords.bearing}, pitch: ${coords.pitch}`;
+  // Format text with available fields only
+  const parts = [`lat: ${coords.lat}`, `lon: ${coords.lon}`];
+  if (coords.zoom !== undefined) parts.push(`zoom: ${coords.zoom}`);
+  if (coords.bearing !== undefined) parts.push(`bearing: ${coords.bearing}`);
+  if (coords.pitch !== undefined) parts.push(`pitch: ${coords.pitch}`);
+  
+  const coordText = parts.join(', ');
   const clipboardDataEl = document.getElementById("clipboard-data");
   if (clipboardDataEl) clipboardDataEl.textContent = coordText;
-  const cliString = `--lon ${coords.lon} --lat ${coords.lat} --zoom ${coords.zoom} --bearing ${coords.bearing} --pitch ${coords.pitch}`;
+  
+  // Format CLI string with available fields only
+  const cliParts = [`--lon ${coords.lon}`, `--lat ${coords.lat}`];
+  if (coords.zoom !== undefined) cliParts.push(`--zoom ${coords.zoom}`);
+  if (coords.bearing !== undefined) cliParts.push(`--bearing ${coords.bearing}`);
+  if (coords.pitch !== undefined) cliParts.push(`--pitch ${coords.pitch}`);
+  
+  const cliString = cliParts.join(' ');
   const cliOutputEl = document.getElementById("cli-output");
   if (cliOutputEl) cliOutputEl.value = cliString;
 }
