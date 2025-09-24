@@ -76,6 +76,8 @@ class CoordinateExtractorApp {
         if (slot) {
           UIComponents.SlotRenderer.renderContent(element, displayText, slot.labelColor || "");
         } else {
+          // Clear the slot completely
+          element.innerHTML = "";
           element.textContent = displayText;
         }
       }
@@ -140,6 +142,7 @@ class CoordinateExtractorApp {
       case "Backspace":
       case "Delete":
         e.preventDefault();
+        console.log('Clear slot hotkey pressed, activeSlotId:', this.activeSlotId);
         this.clearActiveSlot();
         break;
     }
@@ -174,6 +177,13 @@ class CoordinateExtractorApp {
         return;
       }
       
+      // Проверяем, не было ли название изменено пользователем
+      const currentSlot = await StorageManager.getSlot(slotIndex);
+      if (currentSlot && currentSlot.userNamed) {
+        console.log('Slot has user-defined name, skipping geocoding');
+        return;
+      }
+      
       // Показываем индикатор загрузки
       const slotElement = document.getElementById(`saved-coords-${slotIndex}`);
       if (slotElement) {
@@ -186,12 +196,13 @@ class CoordinateExtractorApp {
       if (locationName) {
         const shortName = Geocoder.createShortName(locationName);
         
-        // Обновляем координаты с названием
+        // Обновляем координаты с названием (сбрасываем userNamed при изменении координат)
         const updatedCoords = {
           ...coords,
           name: shortName,
           fullName: locationName,
-          labelColor: ""
+          labelColor: "",
+          userNamed: false // Автоматически сгенерированное название
         };
         
         await StorageManager.setSlot(slotIndex, updatedCoords);
@@ -247,9 +258,13 @@ class CoordinateExtractorApp {
    * Очистка активного слота
    */
   async clearActiveSlot() {
-    if (!this.activeSlotId) return;
+    if (!this.activeSlotId) {
+      console.log('No active slot to clear');
+      return;
+    }
 
     const slotIndex = this.getActiveSlotIndex();
+    console.log('Clearing slot:', slotIndex);
     await StorageManager.setSlot(slotIndex, null);
     this.refreshUI();
   }
@@ -419,7 +434,8 @@ class CoordinateExtractorApp {
             await StorageManager.setSlot(slotIndex, {
               ...coords,
               name: currentSlot?.name || "",
-              labelColor: currentSlot?.labelColor || ""
+              labelColor: currentSlot?.labelColor || "",
+              userNamed: false // Сбрасываем флаг при изменении координат
             });
             
             const element = document.getElementById(this.activeSlotId);

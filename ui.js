@@ -397,7 +397,7 @@ const updateSavedField = (fieldId, textValue) =>
               const name = parts.length > 1 ? parts[0].trim() : "";
               const coordsStr = parts.length > 1 ? parts.slice(1).join(" - ").trim() : textValue.trim();
               const coords = parseCliString(coordsStr);
-              return coords ? Object.assign({}, coords, { name, labelColor }) : null;
+              return coords ? Object.assign({}, coords, { name, labelColor, userNamed: true }) : null;
             })();
       chrome.storage.local.set({ recentCoordinates: recent }, renderRecentCoordinates);
     }
@@ -850,13 +850,6 @@ document.addEventListener("DOMContentLoaded", () => {
           updateSlotIndicator();
           window.activeSavedFieldId = inner.id;
           logMessage(MESSAGES.FIELD_SELECTED + " " + inner.id + " " + MESSAGES.SELECTED + ".", "info");
-        });
-        slotContainer.addEventListener("keydown", (e) => {
-          if (e.code === "Delete" || e.code === "Backspace") {
-            updateSavedField(inner.id, "");
-            renderSlotContent(inner, "");
-            logMessage(MESSAGES.FIELD_CLEARED + " " + inner.id + " " + MESSAGES.CLEARED + ".", "info");
-          }
         });
       }
     }

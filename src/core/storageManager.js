@@ -9,6 +9,7 @@
  * @property {number} pitch - Наклон
  * @property {string} [name] - Пользовательское имя слота
  * @property {string} [labelColor] - Цвет метки слота
+ * @property {boolean} [userNamed] - Флаг, что название было изменено пользователем
  */
 
 /**
