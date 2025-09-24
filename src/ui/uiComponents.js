@@ -1,18 +1,18 @@
 "use strict";
 
 /**
- * Компоненты пользовательского интерфейса
+ * User interface components
  */
 class UIComponents {
   
   /**
-   * Утилиты для цветов и анимации
+   * Color and animation utilities
    */
   static Utils = class {
     
     /**
-     * Генерирует случайный читаемый цвет
-     * @returns {string} RGB цвет
+     * Generate random readable color
+     * @returns {string} RGB color
      */
     static getRandomReadableColor() {
       const r = Math.floor(Math.random() * 128);
@@ -22,8 +22,8 @@ class UIComponents {
     }
 
     /**
-     * Анимирует нажатие кнопки
-     * @param {HTMLElement} btn - Элемент кнопки
+     * Animate button press
+     * @param {HTMLElement} btn - Button element
      */
     static animateButton(btn) {
       if (!btn) return;
@@ -32,8 +32,8 @@ class UIComponents {
     }
 
     /**
-     * Плавная прокрутка до выравнивания по строкам
-     * @param {HTMLElement} el - Элемент для прокрутки
+     * Smooth scroll to line alignment
+     * @param {HTMLElement} el - Element to scroll
      */
     static snapScroll(el) {
       const computedStyle = window.getComputedStyle(el);
@@ -49,26 +49,43 @@ class UIComponents {
   };
 
   /**
-   * Компонент логирования
+   * Logging component
    */
   static Logger = class {
     
     static _logContainer = null;
-
+    static _lastMessages = [];
+    
     /**
-     * Инициализация логгера
+     * Logger initialization
      */
     static init() {
       this._logContainer = document.getElementById("log-output");
     }
 
     /**
-     * Добавляет сообщение в лог
-     * @param {string} msg - Сообщение
-     * @param {string} type - Тип сообщения: "info", "error", "success"  
+     * Add message to log
+     * @param {string} msg - Message
+     * @param {string} type - Message type: "info", "error", "success"  
      */
     static log(msg, type = "info") {
       if (!this._logContainer) return;
+      
+      // Check for duplicate messages in the last 3 entries
+      const recentMessages = this._lastMessages.slice(-3);
+      const isDuplicate = recentMessages.some(entry => 
+        entry.msg === msg && entry.type === type
+      );
+      
+      if (isDuplicate) {
+        return; // Skip duplicate message
+      }
+      
+      // Store message for duplicate checking
+      this._lastMessages.push({ msg, type });
+      if (this._lastMessages.length > 10) {
+        this._lastMessages = this._lastMessages.slice(-10);
+      }
       
       const span = document.createElement("span");
       span.className = `log-message log-${type}`;
@@ -80,15 +97,15 @@ class UIComponents {
   };
 
   /**
-   * Компонент для работы со слотами координат
+   * Component for coordinate slots
    */
   static SlotRenderer = class {
     
     /**
-     * Рендерит содержимое слота
-     * @param {HTMLElement} element - Элемент слота
-     * @param {string} text - Текст для отображения  
-     * @param {string} [storedLabelColor] - Сохраненный цвет метки
+     * Render slot content
+     * @param {HTMLElement} element - Slot element
+     * @param {string} text - Text to display  
+     * @param {string} [storedLabelColor] - Stored label color
      */
     static renderContent(element, text, storedLabelColor = "") {
       if (!element) return;
@@ -155,7 +172,7 @@ class UIComponents {
     }
 
     /**
-     * Обновляет индикатор активного слота
+     * Update active slot indicator
      */
     static updateActiveIndicator() {
       const indicator = document.getElementById("slot-indicator");
@@ -172,8 +189,8 @@ class UIComponents {
     }
 
     /**
-     * Выбирает слот по номеру
-     * @param {number} slotNumber - Номер слота (0-3)
+     * Select slot by number
+     * @param {number} slotNumber - Slot number (0-3)
      */
     static selectSlot(slotNumber) {
       // Remove selection from all slots
@@ -193,64 +210,65 @@ class UIComponents {
           if (typeof window !== 'undefined') {
             window.activeSavedFieldId = inner.id;
           }
-          UIComponents.Logger.log("saved field " + inner.id + " selected.", "info");
+          UIComponents.Logger.log(`Slot ${slotNumber} selected`, "info");
         }
       }
     }
   };
 
   /**
-   * Компонент для работы с буфером обмена
+   * Clipboard component
    */
   static Clipboard = class {
     
     /**
-     * Копирует текст в буфер обмена
-     * @param {string} text - Текст для копирования
-     * @returns {Promise<boolean>} Успешность операции
+     * Copy text to clipboard
+     * @param {string} text - Text to copy
+     * @returns {Promise<boolean>} Operation success
      */
     static async copy(text) {
       try {
         await navigator.clipboard.writeText(text);
+        UIComponents.Logger.log("Coordinates copied to clipboard", "success");
         return true;
       } catch (error) {
-        UIComponents.Logger.log("Clipboard write error: " + error, "error");
+        UIComponents.Logger.log("Clipboard write error", "error");
         return false;
       }
     }
 
     /**
-     * Читает текст из буфера обмена
-     * @returns {Promise<string|null>} Текст из буфера или null
+     * Read text from clipboard
+     * @returns {Promise<string|null>} Text from clipboard or null
      */
     static async read() {
       try {
         const text = await navigator.clipboard.readText();
         return text;
       } catch (error) {
-        UIComponents.Logger.log("Clipboard read error: " + error, "error");
+        // UIComponents.Logger.log("Clipboard read error: " + error, "error");
         return null;
       }
     }
   };
 
   /**
-   * Компонент для отображения координат в CLI области
+   * Component for displaying coordinates in CLI area
    */
   static CoordinateDisplay = class {
     
     static _cliOutput = null;
 
     /**
-     * Инициализация компонента
+     * Component initialization
      */
     static init() {
       this._cliOutput = document.getElementById("cli-output");
     }
 
     /**
-     * Отображает координаты в CLI области
-     * @param {Object} coords - Координаты для отображения
+     * Display coordinates in CLI area
+     * @param {Object} coords - Coordinates to display
      */
     static display(coords) {
       if (!this._cliOutput || !window.CoordinateParser) return;
@@ -260,15 +278,15 @@ class UIComponents {
     }
 
     /**
-     * Получает текст из CLI области
-     * @returns {string} Текст из CLI области
+     * Get text from CLI area
+     * @returns {string} Text from CLI area
      */
     static getText() {
       return this._cliOutput ? this._cliOutput.value : "";
     }
 
     /**
-     * Очищает CLI область
+     * Clear CLI area
      */
     static clear() {
       if (this._cliOutput) {
@@ -278,7 +296,7 @@ class UIComponents {
   };
 
   /**
-   * Инициализация всех компонентов
+   * Initialize all components
    */
   static init() {
     this.Logger.init();

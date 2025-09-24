@@ -1,8 +1,8 @@
 "use strict";
 
 /**
- * Главный класс приложения Coordinate Extractor
- * Координирует работу всех модулей
+ * Main Coordinate Extractor application class
+ * Coordinates all modules
  */
 class CoordinateExtractorApp {
   
@@ -20,7 +20,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Инициализация приложения
+   * Initialize the application
    */
   async init() {
     try {
@@ -55,14 +55,14 @@ class CoordinateExtractorApp {
       // Setup event handlers
       this.setupEventListeners();
     } catch (error) {
-      UIComponents.Logger.log("Failed to initialize app: " + error.message, "error");
+      // UIComponents.Logger.log("Failed to initialize app: " + error.message, "error");
       console.error("App initialization error:", error);
     }
   }
 
 
   /**
-   * Загружает сохраненные координаты из хранилища
+   * Load saved coordinates from storage
    */
   async loadStoredCoordinates() {
     const slots = await StorageManager.getAllSlots();
@@ -91,7 +91,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Обработка клавиш в полях ввода
+   * Handle keys in input fields
    */
   handleInputFieldKeys(e) {
     if ((e.code === "Delete" || e.code === "Backspace") && this.activeSlotId) {
@@ -101,7 +101,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Обработка глобальных горячих клавиш
+   * Handle global hotkeys
    */
   handleGlobalHotkeys(e) {
     switch (e.code) {
@@ -149,7 +149,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Копирование координат в буфер обмена
+   * Copy coordinates to clipboard
    */
   async handleCopyToClipboard() {
     try {
@@ -167,9 +167,9 @@ class CoordinateExtractorApp {
 
 
   /**
-   * Добавляет название места к координатам
-   * @param {Object} coords - Координаты
-   * @param {number} slotIndex - Индекс слота
+   * Add location name to coordinates
+   * @param {Object} coords - Coordinates
+   * @param {number} slotIndex - Slot index
    */
   async addLocationName(coords, slotIndex) {
     try {
@@ -177,37 +177,37 @@ class CoordinateExtractorApp {
         return;
       }
       
-      // Проверяем, не было ли название изменено пользователем
+      // Check if name was changed by user
       const currentSlot = await StorageManager.getSlot(slotIndex);
       if (currentSlot && currentSlot.userNamed) {
         console.log('Slot has user-defined name, skipping geocoding');
         return;
       }
       
-      // Показываем индикатор загрузки
+      // Show loading indicator
       const slotElement = document.getElementById(`saved-coords-${slotIndex}`);
       if (slotElement) {
         slotElement.textContent = 'Loading location...';
       }
       
-      // Получаем название места
+      // Get location name
       const locationName = await Geocoder.reverseGeocode(coords.lat, coords.lon);
       
       if (locationName) {
         const shortName = Geocoder.createShortName(locationName);
         
-        // Обновляем координаты с названием (сбрасываем userNamed при изменении координат)
+        // Update coordinates with name (reset userNamed when coordinates change)
         const updatedCoords = {
           ...coords,
           name: shortName,
           fullName: locationName,
           labelColor: "",
-          userNamed: false // Автоматически сгенерированное название
+          userNamed: false // Auto-generated name
         };
         
         await StorageManager.setSlot(slotIndex, updatedCoords);
         
-        // Обновляем UI после добавления названия
+        // Update UI after adding name
         this.refreshUI();
       }
     } catch (error) {
@@ -217,7 +217,7 @@ class CoordinateExtractorApp {
   
   
   /**
-   * Навигация к координатам
+   * Navigation to coordinates
    */
   async handleNavigateToCoordinates() {
     const coords = this.getActiveSlotCoordinates();
@@ -233,7 +233,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Редактирование слота
+   * Slot editing
    */
   handleEditSlot() {
     const slotIndex = this.getActiveSlotIndex();
@@ -247,7 +247,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Выбор слота
+   * Slot selection
    */
   selectSlot(slotIndex) {
     this.activeSlotId = `saved-coords-${slotIndex}`;
@@ -255,7 +255,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Очистка активного слота
+   * Clear active slot
    */
   async clearActiveSlot() {
     if (!this.activeSlotId) {
@@ -270,7 +270,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Получение координат активного слота
+   * Get active slot coordinates
    */
   getActiveSlotCoordinates() {
     const slotIndex = this.getActiveSlotIndex();
@@ -278,14 +278,14 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Получение индекса активного слота
+   * Get active slot index
    */
   getActiveSlotIndex() {
     return parseInt(this.activeSlotId.split('-').pop());
   }
 
   /**
-   * Обновление визуального выделения слотов
+   * Update slot visual selection
    */
   updateSlotSelection() {
     // Remove previous selection
@@ -301,7 +301,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Форматирование координат в CLI формат
+   * Format coordinates as CLI
    */
   formatCoordinatesAsCLI(coords) {
     const parts = [`--lon ${coords.lon}`, `--lat ${coords.lat}`];
@@ -312,7 +312,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Парсинг CLI строки в координаты
+   * Parse CLI string to coordinates
    */
   parseCLIString(cliString) {
     if (typeof window !== 'undefined' && window.CliParser) {
@@ -335,14 +335,14 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Обновление UI
+   * Update UI
    */
   refreshUI() {
     this.loadStoredCoordinates();
   }
 
   /**
-   * Извлекает координаты из URL активной вкладки
+   * Extract coordinates from active tab URL
    */
   async extractCurrentTabCoordinates() {
     const currentUrl = await BrowserManager.getActiveTabUrl();
@@ -365,7 +365,7 @@ class CoordinateExtractorApp {
         UIComponents.SlotRenderer.renderContent(slot0Element, cliString);
       }
       
-      // Слот 0 не должен автоматически определять название места
+      // Slot 0 should not auto-determine location name
     } else {
       const slot0Element = document.getElementById("saved-coords-0");
       if (slot0Element) {
@@ -375,7 +375,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Настраивает обработчики событий для основных кнопок
+   * Setup event handlers for main buttons
    */
   setupEventListeners() {
     this.setupCopyButton();
@@ -427,7 +427,7 @@ class CoordinateExtractorApp {
           const slotIndex = parseInt(this.activeSlotId.split("-").pop(), 10);
           const currentSlot = await StorageManager.getSlot(slotIndex);
           
-          // Для слотов 1, 2, 3 добавляем автоматическое именование
+          // For slots 1, 2, 3 add automatic naming
           if (slotIndex > 0 && coords.lat && coords.lon) {
             await this.addLocationName(coords, slotIndex);
           } else {
@@ -435,7 +435,7 @@ class CoordinateExtractorApp {
               ...coords,
               name: currentSlot?.name || "",
               labelColor: currentSlot?.labelColor || "",
-              userNamed: false // Сбрасываем флаг при изменении координат
+              userNamed: false // Reset flag when coordinates change
             });
             
             const element = document.getElementById(this.activeSlotId);
@@ -453,8 +453,9 @@ class CoordinateExtractorApp {
         }
         
         this.clipboardCoords = coords;
+        UIComponents.Logger.log("Coordinates pasted from clipboard", "success");
       } else {
-        UIComponents.Logger.log("Failed to parse coordinates from clipboard.", "error");
+        UIComponents.Logger.log("Failed to parse coordinates", "error");
       }
     });
   }
@@ -483,17 +484,17 @@ class CoordinateExtractorApp {
       }
 
       if (!coordsToUse) {
-        UIComponents.Logger.log("No coordinates available.", "error");
+        UIComponents.Logger.log("No coordinates available", "error");
         return;
       }
 
-      UIComponents.Logger.log("Navigating with coordinates: " + JSON.stringify(coordsToUse), "info");
+      // UIComponents.Logger.log("Navigating with coordinates: " + JSON.stringify(coordsToUse), "info");
       
       const success = await BrowserManager.updateActiveTabWithCoordinates(coordsToUse);
       if (!success) {
-        UIComponents.Logger.log("This site's URL structure is not supported for automatic coordinate substitution.", "error");
+        UIComponents.Logger.log("URL structure not supported", "error");
       } else {
-        UIComponents.Logger.log("URL updated successfully.", "success");
+        UIComponents.Logger.log("URL updated successfully", "success");
       }
     });
   }
@@ -510,19 +511,19 @@ class CoordinateExtractorApp {
       switch (e.code) {
         case "KeyC":
           e.preventDefault();
-          UIComponents.Logger.log("Hotkey 'C' pressed.", "info");
+          // UIComponents.Logger.log("Hotkey 'C' pressed.", "info");
           document.getElementById("copy-cli")?.click();
           break;
           
         case "KeyV":
           e.preventDefault();
-          UIComponents.Logger.log("Hotkey 'V' pressed.", "info");
+          // UIComponents.Logger.log("Hotkey 'V' pressed.", "info");
           document.getElementById("paste-coords")?.click();
           break;
           
         case "KeyG":
           e.preventDefault();
-          UIComponents.Logger.log("Hotkey 'G' pressed.", "info");
+          // UIComponents.Logger.log("Hotkey 'G' pressed.", "info");
           document.getElementById("navigate-url")?.click();
           break;
           
@@ -543,7 +544,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Настраивает обработчики для слотов координат
+   * Setup event handlers for coordinate slots
    */
   attachSlotEventListeners() {
     this.slotIds.forEach((innerId, index) => {
@@ -569,8 +570,8 @@ class CoordinateExtractorApp {
 
 
   /**
-   * Очищает слот по индексу
-   * @param {number} slotIndex - Индекс слота для очистки
+   * Clear slot by index
+   * @param {number} slotIndex - Slot index to clear
    */
   async clearSlot(slotIndex) {
     await StorageManager.clearSlot(slotIndex);
@@ -580,11 +581,11 @@ class CoordinateExtractorApp {
       element.textContent = `Coordinate slot ${slotIndex} ...`;
     }
     
-    UIComponents.Logger.log(`Saved field saved-coords-${slotIndex} cleared.`, "info");
+    UIComponents.Logger.log(`Slot ${slotIndex} cleared`, "info");
   }
 
   /**
-   * Редактирование метки активного слота
+   * Edit active slot label
    */
   editActiveSlotLabel() {
     const activeSlot = document.querySelector(".saved-slot-item.selected-saved");
@@ -597,7 +598,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Настраивает функционал редактирования меток слотов
+   * Setup slot label editing functionality
    */
   attachEditFunctionality() {
     // Add hotkey handler for editing
@@ -625,9 +626,9 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Начинает процесс редактирования метки слота
-   * @param {HTMLElement} icon - Иконка редактирования
-   * @param {HTMLElement} slot - Элемент слота
+   * Start slot label editing process
+   * @param {HTMLElement} icon - Edit icon
+   * @param {HTMLElement} slot - Slot element
    */
   startEditingSlotLabel(icon, slot) {
     if (!slot || slot.querySelector(".label-input")) return;
@@ -708,7 +709,7 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Настраивает snap-скроллинг для слотов
+   * Setup snap scrolling for slots
    */
   setupScrollSnapping() {
     document.querySelectorAll(".saved-slot-item .slot-inner").forEach((inner) => {

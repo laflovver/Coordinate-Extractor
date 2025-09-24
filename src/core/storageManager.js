@@ -2,18 +2,18 @@
 
 /**
  * @typedef {Object} CoordinateSlot
- * @property {number} lat - Широта
- * @property {number} lon - Долгота
- * @property {number} zoom - Масштаб
- * @property {number} bearing - Направление
- * @property {number} pitch - Наклон
- * @property {string} [name] - Пользовательское имя слота
- * @property {string} [labelColor] - Цвет метки слота
- * @property {boolean} [userNamed] - Флаг, что название было изменено пользователем
+ * @property {number} lat - Latitude
+ * @property {number} lon - Longitude
+ * @property {number} zoom - Zoom level
+ * @property {number} bearing - Bearing
+ * @property {number} pitch - Pitch
+ * @property {string} [name] - User-defined slot name
+ * @property {string} [labelColor] - Label color
+ * @property {boolean} [userNamed] - Flag that name was changed by user
  */
 
 /**
- * Менеджер для работы с локальным хранилищем Chrome
+ * Manager for Chrome local storage
  */
 class StorageManager {
   
@@ -21,8 +21,8 @@ class StorageManager {
   static MAX_SLOTS = 4;
 
   /**
-   * Получает все слоты координат из хранилища
-   * @returns {Promise<CoordinateSlot[]>} Массив слотов
+   * Get all coordinate slots from storage
+   * @returns {Promise<CoordinateSlot[]>} Array of slots
    */
   static async getAllSlots() {
     try {
@@ -42,9 +42,9 @@ class StorageManager {
   }
 
   /**
-   * Получает конкретный слот по индексу
-   * @param {number} slotIndex - Индекс слота (0-3)
-   * @returns {Promise<CoordinateSlot|null>} Слот или null
+   * Get specific slot by index
+   * @param {number} slotIndex - Slot index (0-3)
+   * @returns {Promise<CoordinateSlot|null>} Slot or null
    */
   static async getSlot(slotIndex) {
     if (slotIndex < 0 || slotIndex >= this.MAX_SLOTS) {
@@ -56,10 +56,10 @@ class StorageManager {
   }
 
   /**
-   * Сохраняет слот координат
-   * @param {number} slotIndex - Индекс слота (0-3)
-   * @param {CoordinateSlot|null} slotData - Данные слота или null для очистки
-   * @returns {Promise<boolean>} Успешность операции
+   * Save coordinate slot
+   * @param {number} slotIndex - Slot index (0-3)
+   * @param {CoordinateSlot|null} slotData - Slot data or null for clearing
+   * @returns {Promise<boolean>} Operation success
    */
   static async setSlot(slotIndex, slotData) {
     if (slotIndex < 0 || slotIndex >= this.MAX_SLOTS) {
@@ -79,10 +79,10 @@ class StorageManager {
   }
 
   /**
-   * Обновляет координаты в слоте
-   * @param {number} slotIndex - Индекс слота 
-   * @param {Object} coordinates - Новые координаты
-   * @returns {Promise<boolean>} Успешность операции
+   * Update coordinates in slot
+   * @param {number} slotIndex - Slot index 
+   * @param {Object} coordinates - New coordinates
+   * @returns {Promise<boolean>} Operation success
    */
   static async updateSlotCoordinates(slotIndex, coordinates) {
     const currentSlot = await this.getSlot(slotIndex);
@@ -94,11 +94,11 @@ class StorageManager {
   }
 
   /**
-   * Обновляет метку слота
-   * @param {number} slotIndex - Индекс слота
-   * @param {string} name - Новое имя
-   * @param {string} [labelColor] - Цвет метки
-   * @returns {Promise<boolean>} Успешность операции
+   * Update slot label
+   * @param {number} slotIndex - Slot index
+   * @param {string} name - New name
+   * @param {string} [labelColor] - Label color
+   * @returns {Promise<boolean>} Operation success
    */
   static async updateSlotLabel(slotIndex, name, labelColor = "") {
     if (slotIndex === 0) {
@@ -122,17 +122,17 @@ class StorageManager {
   }
 
   /**
-   * Очищает слот
-   * @param {number} slotIndex - Индекс слота для очистки
-   * @returns {Promise<boolean>} Успешность операции
+   * Clear slot
+   * @param {number} slotIndex - Slot index to clear
+   * @returns {Promise<boolean>} Operation success
    */
   static async clearSlot(slotIndex) {
     return this.setSlot(slotIndex, null);
   }
 
   /**
-   * Очищает все слоты
-   * @returns {Promise<boolean>} Успешность операции
+   * Clear all slots
+   * @returns {Promise<boolean>} Operation success
    */
   static async clearAllSlots() {
     try {
@@ -145,11 +145,11 @@ class StorageManager {
   }
 
   /**
-   * Создает слот из CLI строки
-   * @param {string} cliString - CLI строка с координатами
-   * @param {string} [name] - Имя слота
-   * @param {string} [labelColor] - Цвет метки
-   * @returns {CoordinateSlot|null} Созданный слот или null если парсинг не удался
+   * Create slot from CLI string
+   * @param {string} cliString - CLI string with coordinates
+   * @param {string} [name] - Slot name
+   * @param {string} [labelColor] - Label color
+   * @returns {CoordinateSlot|null} Created slot or null if parsing failed
    */
   static createSlotFromCli(cliString, name = "", labelColor = "") {
     if (!window.CoordinateParser) {
@@ -170,9 +170,9 @@ class StorageManager {
   }
 
   /**
-   * Форматирует слот в CLI строку
-   * @param {CoordinateSlot} slot - Слот для форматирования
-   * @returns {string} CLI строка
+   * Format slot to CLI string
+   * @param {CoordinateSlot} slot - Slot to format
+   * @returns {string} CLI string
    */
   static formatSlotToCli(slot) {
     if (!slot || !window.CoordinateParser) {
@@ -183,10 +183,10 @@ class StorageManager {
   }
 
   /**
-   * Получает отформатированный текст слота для отображения
-   * @param {CoordinateSlot|null} slot - Слот
-   * @param {number} slotIndex - Индекс слота
-   * @returns {string} Форматированный текст
+   * Get formatted slot text for display
+   * @param {CoordinateSlot|null} slot - Slot
+   * @param {number} slotIndex - Slot index
+   * @returns {string} Formatted text
    */
   static getSlotDisplayText(slot, slotIndex) {
     if (!slot) {
@@ -198,8 +198,8 @@ class StorageManager {
   }
 
   /**
-   * Подписка на изменения в хранилище
-   * @param {function} callback - Колбэк вызываемый при изменениях
+   * Subscribe to storage changes
+   * @param {function} callback - Callback called on changes
    */
   static onStorageChanged(callback) {
     chrome.storage.onChanged.addListener((changes, namespace) => {

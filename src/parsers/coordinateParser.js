@@ -2,24 +2,24 @@
 
 /**
  * @typedef {Object} Coordinates
- * @property {number} lat - Широта
- * @property {number} lon - Долгота  
- * @property {number} zoom - Масштаб
- * @property {number} bearing - Направление
- * @property {number} pitch - Наклон
+ * @property {number} lat - Latitude
+ * @property {number} lon - Longitude  
+ * @property {number} zoom - Zoom level
+ * @property {number} bearing - Bearing
+ * @property {number} pitch - Pitch
  * 
  * Version: 1.1 - Fixed hashQueryParams error
  */
 
 /**
- * Парсер координат из различных URL форматов
+ * Coordinate parser from various URL formats
  */
 class CoordinateParser {
   
   /**
-   * Извлекает координаты из URL
-   * @param {string} url - URL для парсинга
-   * @returns {Coordinates|null} Извлеченные координаты или null
+   * Extract coordinates from URL
+   * @param {string} url - URL to parse
+   * @returns {Coordinates|null} Extracted coordinates or null
    */
   static extractFromUrl(url) {
     try {
@@ -56,9 +56,9 @@ class CoordinateParser {
   }
 
   /**
-   * Парсит координаты из CLI строки
-   * @param {string} cliString - Строка в формате --lon X --lat Y --zoom Z
-   * @returns {Coordinates|null} Извлеченные координаты или null
+   * Parse coordinates from CLI string
+   * @param {string} cliString - String in format --lon X --lat Y --zoom Z
+   * @returns {Coordinates|null} Extracted coordinates or null
    */
   static parseFromCli(cliString) {
     const parts = cliString.split(/\s+/);
@@ -79,9 +79,9 @@ class CoordinateParser {
   }
 
   /**
-   * Форматирует координаты в CLI строку
-   * @param {Coordinates} coords - Координаты для форматирования
-   * @returns {string} CLI строка
+   * Format coordinates to CLI string
+   * @param {Coordinates} coords - Coordinates to format
+   * @returns {string} CLI string
    */
   static formatToCli(coords) {
     if (!coords || typeof coords !== 'object') {
@@ -111,7 +111,7 @@ class CoordinateParser {
         const hasCenterInSearch = u.search.includes('center=');
         const hasQuery = u.hash.includes('?') || u.search.includes('?');
         const hasHashCoords = u.hash.match(/#[\d\.]+\/[\d\.]+\/[\d\.]+/); // Format: #zoom/lat/lon
-        const hasStandardStyleCoords = u.hash.match(/#\d+\.?\d*\/\d+\.?\d*\/-?\d+\.?\d*\/\d+\.?\d*(?:\/\d+\.?\d*)?/); // Format: #zoom/lat/lon/bearing/pitch or #zoom/lat/lon/bearing
+              const hasStandardStyleCoords = u.hash.match(/#\d+\.?\d*\/\d+\.?\d*\/-?\d+\.?\d*\/-?\d+\.?\d*(?:\/\d+\.?\d*)?/); // Format: #zoom/lat/lon/bearing/pitch or #zoom/lat/lon/bearing
         
         return isMapbox && ((hasCenterInHash || hasCenterInSearch) && hasQuery || hasHashCoords || hasStandardStyleCoords);
       },
@@ -128,8 +128,8 @@ class CoordinateParser {
           return { lat, lon, zoom, bearing, pitch };
         }
 
-        // Check for standard style coordinates format with 4 parameters: #zoom/lat/lon/bearing
-        const standardStyleMatch4 = u.hash.match(/#(\d+\.?\d*)\/(\d+\.?\d*)\/(-?\d+\.?\d*)\/(\d+\.?\d*)/);
+              // Check for standard style coordinates format with 4 parameters: #zoom/lat/lon/bearing
+              const standardStyleMatch4 = u.hash.match(/#(\d+\.?\d*)\/(\d+\.?\d*)\/(-?\d+\.?\d*)\/(-?\d+\.?\d*)/);
         if (standardStyleMatch4) {
           const zoom = parseFloat(standardStyleMatch4[1]);
           const lat = parseFloat(standardStyleMatch4[2]);

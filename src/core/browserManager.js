@@ -1,13 +1,13 @@
 "use strict";
 
 /**
- * Менеджер для работы с Chrome API и вкладками браузера
+ * Manager for Chrome API and browser tabs
  */
 class BrowserManager {
   
   /**
-   * Получает URL активной вкладки
-   * @returns {Promise<string|null>} URL активной вкладки или null
+   * Get active tab URL
+   * @returns {Promise<string|null>} Active tab URL or null
    */
   static async getActiveTabUrl() {
     try {
@@ -20,9 +20,9 @@ class BrowserManager {
   }
 
   /**
-   * Обновляет URL активной вкладки с новыми координатами
-   * @param {Object} coords - Координаты для вставки
-   * @returns {Promise<boolean>} Успешность операции
+   * Update active tab URL with new coordinates
+   * @param {Object} coords - Coordinates to insert
+   * @returns {Promise<boolean>} Operation success
    */
   static async updateActiveTabWithCoordinates(coords) {
     try {
@@ -63,8 +63,8 @@ class BrowserManager {
   }
 
   /**
-   * Открывает расширение в новой вкладке
-   * @returns {Promise<boolean>} Успешность операции  
+   * Open extension in new tab
+   * @returns {Promise<boolean>} Operation success  
    */
   static async openExtensionInTab() {
     try {

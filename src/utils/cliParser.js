@@ -1,15 +1,15 @@
 "use strict";
 
 /**
- * Современная версия парсера CLI строк
- * Улучшенная версия parseCliString с лучшей валидацией и обработкой ошибок
+ * Modern CLI string parser
+ * Improved version of parseCliString with better validation and error handling
  */
 class CliParser {
   
   /**
-   * Парсит CLI строку в объект координат
-   * @param {string} cliString - CLI строка в формате "--lon X --lat Y --zoom Z"
-   * @returns {Object|null} Объект координат или null
+   * Parse CLI string to coordinates object
+   * @param {string} cliString - CLI string in format "--lon X --lat Y --zoom Z"
+   * @returns {Object|null} Coordinates object or null
    */
   static parse(cliString) {
     if (!cliString || typeof cliString !== 'string') {
@@ -54,9 +54,9 @@ class CliParser {
   }
 
   /**
-   * Форматирует объект координат в CLI строку
-   * @param {Object} coords - Объект координат
-   * @returns {string} CLI строка
+   * Format coordinates object to CLI string
+   * @param {Object} coords - Coordinates object
+   * @returns {string} CLI string
    */
   static format(coords) {
     if (!coords || typeof coords !== 'object') {
@@ -75,9 +75,9 @@ class CliParser {
   }
 
   /**
-   * Проверяет валидность CLI строки
-   * @param {string} cliString - CLI строка для проверки
-   * @returns {boolean} true если строка валидна
+   * Check CLI string validity
+   * @param {string} cliString - CLI string to check
+   * @returns {boolean} true if string is valid
    */
   static validate(cliString) {
     const parsed = this.parse(cliString);

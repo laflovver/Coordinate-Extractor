@@ -137,6 +137,16 @@ const logMessage = (msg, type = "info") => {
     return;
   }
   
+  // Check for duplicate messages in the last 3 entries
+  const recentMessages = logHistory.slice(-3);
+  const isDuplicate = recentMessages.some(entry => 
+    entry.msg === msg.replace(/\n/g, " ") && entry.type === type
+  );
+  
+  if (isDuplicate) {
+    return; // Skip duplicate message
+  }
+
   // Add to history
   const timestamp = new Date().toLocaleTimeString();
   logHistory.push({ msg: msg.replace(/\n/g, " "), type, timestamp });
@@ -171,7 +181,7 @@ const logMessage = (msg, type = "info") => {
   if (type === "success") {
     setTimeout(() => {
       if (logHistory.length > 0 && logHistory[logHistory.length - 1].msg === msg.replace(/\n/g, " ")) {
-        logMessage(MESSAGES.READY, "info");
+        // logMessage(MESSAGES.READY, "info");
       }
     }, 5000);
   }
@@ -780,13 +790,13 @@ const selectSlot = (slotNumber) => {
     const inner = activeSlot.querySelector(".slot-inner") || activeSlot;
     if (inner) {
       window.activeSavedFieldId = inner.id;
-      logMessage("saved field " + inner.id + " selected.", "info");
+      // logMessage("saved field " + inner.id + " selected.", "info");
     }
   }
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  logMessage(MESSAGES.READY, "info");
+  // logMessage(MESSAGES.READY, "info");
   
   // Initialize immediately
   if (typeof CoordinateExtractorApp !== 'undefined') {
@@ -815,16 +825,16 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Check Chrome API availability
   if (typeof chrome === 'undefined') {
-    logMessage(MESSAGES.CHROME_API_UNAVAILABLE, "error");
+    // logMessage(MESSAGES.CHROME_API_UNAVAILABLE, "error");
     return;
   }
   
   if (typeof chrome.tabs === 'undefined') {
-    logMessage(MESSAGES.CHROME_TABS_API_UNAVAILABLE, "error");
+    // logMessage(MESSAGES.CHROME_TABS_API_UNAVAILABLE, "error");
     return;
   }
   
-  logMessage(MESSAGES.CHROME_API_AVAILABLE, "success");
+  // logMessage(MESSAGES.CHROME_API_AVAILABLE, "success");
   
   renderRecentCoordinates();
   window.activeSavedFieldId = "saved-coords-0";
@@ -849,60 +859,63 @@ document.addEventListener("DOMContentLoaded", () => {
           slotContainer.classList.add("selected-saved");
           updateSlotIndicator();
           window.activeSavedFieldId = inner.id;
-          logMessage(MESSAGES.FIELD_SELECTED + " " + inner.id + " " + MESSAGES.SELECTED + ".", "info");
+          // logMessage(MESSAGES.FIELD_SELECTED + " " + inner.id + " " + MESSAGES.SELECTED + ".", "info");
         });
       }
     }
   });
   
-  logMessage(MESSAGES.EXECUTING_TABS_QUERY, "info");
+  // logMessage(MESSAGES.EXECUTING_TABS_QUERY, "info");
   
   // Check permissions
   if (chrome.permissions) {
     chrome.permissions.getAll((permissions) => {
-      logMessage(MESSAGES.PERMISSIONS + " " + JSON.stringify(permissions), "info");
+      // logMessage(MESSAGES.PERMISSIONS + " " + JSON.stringify(permissions), "info");
     });
   }
   
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     // Check for Chrome API errors
     if (chrome.runtime.lastError) {
-      logMessage("chrome.tabs.query error: " + chrome.runtime.lastError.message, "error");
+      // logMessage("chrome.tabs.query error: " + chrome.runtime.lastError.message, "error");
       return;
     }
     
-    logMessage("tabs query executed, found " + (tabs ? tabs.length : 0) + " tabs", "info");
+    // logMessage("tabs query executed, found " + (tabs ? tabs.length : 0) + " tabs", "info");
     
     if (!tabs || !tabs.length) {
-      logMessage("no active tab found.", "error");
+      logMessage("No active tab found.", "error");
       return;
     }
     
     const tab = tabs[0];
-    logMessage("tab id: " + tab.id, "info");
-    logMessage("tab title: " + (tab.title || "no title"), "info");
-    logMessage("tab status: " + tab.status, "info");
-    logMessage("tab url: " + (tab.url || "undefined"), tab.url ? "success" : "error");
+    // logMessage("tab id: " + tab.id, "info");
+    // logMessage("tab title: " + (tab.title || "no title"), "info");
+    // logMessage("tab status: " + tab.status, "info");
+    // logMessage("tab url: " + (tab.url || "undefined"), tab.url ? "success" : "error");
     
     if (!tab.url) {
-      logMessage("tab.url is undefined - check you're on http/https page", "error");
-      logMessage("if on chrome:// or special page, go to normal website", "info");
+      logMessage("Invalid page - navigate to a web page", "error");
     }
     
     const currentUrl = tab.url;
-    logMessage("active tab url: " + currentUrl, "info");
+    // logMessage("active tab url: " + currentUrl, "info");
     const currentUrlEl = document.getElementById("current-url");
     if (currentUrlEl) currentUrlEl.textContent = currentUrl;
     
     // Check if URL is valid before parsing (only for Chrome internal pages)
     if (!currentUrl) {
-      logMessage("URL is empty - testing with sample URLs", "error");
+      // logMessage("URL is empty - testing with sample URLs", "error");
       
       // Temporarily test parser with sample URLs
-      logMessage("Тестируем парсер координат...", "info");
+      // logMessage("Testing coordinate parser...", "info");
+      // logMessage("✅ Fixed Mapbox parsing for negative bearing values", "success");
+      // logMessage("✅ Google Maps and Mapbox URLs now parse correctly", "success");
       const sampleUrls = [
         "https://www.google.com/maps/@48.85891,2.2768,13.75z",
+        "https://www.google.com/maps/@48.1388531,11.5804128,317z/data=!3m1!1e3?entry=ttu&g_ep=EgoyMDI1MDkyMS4wIKXMDSoASAFQAw%3D%3D",
         "https://api.mapbox.com/styles/v1/mapbox/streets-v11#13.75/48.85891/2.2768",
+        "https://api.mapbox.com/styles/v1/mapbox-3dln/demo-3dln-style-eu.html?title=view&access_token=pk.eyJ1IjoibWFwYm94LTNkbG4iLCJhIjoiY200djloOGQ2MDBmNDJpc2J5OHVtdDVkNCJ9.-Lbyn-czRBlAxwl-yNWdTg&zoomwheel=true&fresh=true#17.5/37.794721/-122.403597/-142.2/40",
         "https://www.openstreetmap.org/#map=13/48.85891/2.2768",
         "https://sites.mapbox.com/mbx-3dbuilding-tools-staging/#/model-slots/2022-10-10/review/?center=17%2F139.82942805372113%2F35.732227090774394&jira_summary=&jira_status=&jira_issue_id=&jira_labels=&jira_fix_versions=bmw_br&env=stg-styled&city=&lights=day&colorization="
       ];
@@ -914,7 +927,7 @@ document.addEventListener("DOMContentLoaded", () => {
                            testUrl.includes('openstreetmap.org') ? 'OpenStreetMap' : 'Unknown';
         
         if (testResult) {
-          logMessage(`✅ ${serviceName}: lat=${testResult.lat}, lon=${testResult.lon}, zoom=${testResult.zoom}`, "success");
+          // logMessage(`✅ ${serviceName}: lat=${testResult.lat}, lon=${testResult.lon}, zoom=${testResult.zoom}`, "success");
           if (index === 0) {
             // Show first successful result
             displayCoordinates(testResult);
@@ -932,14 +945,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           }
         } else {
-          logMessage(`❌ ${serviceName}: parsing failed`, "error");
+          // logMessage(`❌ ${serviceName}: parsing failed`, "error");
         }
       });
       return;
     }
     
     if (currentUrl.startsWith('chrome://') || currentUrl.startsWith('chrome-extension://')) {
-      logMessage("skipping coordinate extraction for chrome internal page", "info");
+      // logMessage("skipping coordinate extraction for chrome internal page", "info");
       const inner = document.getElementById("saved-coords-0");
       if (inner) inner.textContent = "chrome internal page";
       return;
@@ -955,10 +968,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     if (coords) {
-      logMessage("coordinates extracted: " + JSON.stringify(coords), "success");
+      logMessage(`Coordinates extracted: ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)}, zoom ${coords.zoom}`, "success");
       displayCoordinates(coords);
     } else {
-      logMessage("coordinates not found in url.", "error");
+      logMessage("No coordinates found in URL", "error");
       const inner = document.getElementById("saved-coords-0");
       if (inner) inner.textContent = "coordinates not found";
     }
@@ -1005,7 +1018,7 @@ document.addEventListener("DOMContentLoaded", () => {
       logMessage("active tab url: " + currentUrl, "info");
       
       if (currentUrl.startsWith('chrome://') || currentUrl.startsWith('chrome-extension://')) {
-        logMessage("skipping coordinate extraction for chrome internal page", "info");
+        // logMessage("skipping coordinate extraction for chrome internal page", "info");
         const inner = document.getElementById("saved-coords-0");
         if (inner) inner.textContent = "chrome internal page";
         return;
@@ -1013,10 +1026,10 @@ document.addEventListener("DOMContentLoaded", () => {
       
       const coords = extractCoordinates(currentUrl);
       if (coords) {
-        logMessage("coordinates extracted: " + JSON.stringify(coords), "success");
+        logMessage(`Coordinates extracted: ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)}, zoom ${coords.zoom}`, "success");
         displayCoordinates(coords);
       } else {
-        logMessage("coordinates not found in url.", "error");
+        logMessage("No coordinates found in URL", "error");
         const inner = document.getElementById("saved-coords-0");
         if (inner) inner.textContent = "coordinates not found";
       }
