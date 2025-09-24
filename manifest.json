@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Coordinate Extractor",
-  "version": "2.1",
+  "version": "3.0.0",
   "description": "Extracts coordinates from the URL and updates them, supports hotkeys.",
   "icons": {
     "128": "image.png"

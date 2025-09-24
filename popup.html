@@ -8,45 +8,48 @@
 </head>
 <body>
   <div class="grid-container">
-    <header class="header">
-      <h1>Coordinate Extractor</h1>
-    </header>
     <section class="section coords-section">
-      <h2>Status Log</h2>
       <div id="log-output" class="log-container"></div>
     </section>
     <section class="section cli-section">
-      <h2>Coordinates</h2>
-      <textarea id="cli-output" readonly rows="1"></textarea>
-      <button id="copy-cli">Copy to clipboard</button>
+      <textarea id="cli-output" readonly rows="1" placeholder="coordinates will appear here..."></textarea>
+      <button id="copy-cli">copy to clipboard <span class="button-hotkey">c</span></button>
     </section>
     <section class="section nav-section">
-      <h2>Coordinate Navigation</h2>
-      <button id="paste-coords">Paste clipboard coordinates</button>
+      <button id="paste-coords">paste clipboard coordinates <span class="button-hotkey">v</span></button>
       <div class="saved-slots">
         <div class="slot-indicator" id="slot-indicator"></div>
         <div class="saved-slot-item" id="slot-saved-coords-0">
-          <div class="slot-inner" id="saved-coords-0">Coordinate slot 0 ...</div>
-          <span class="edit-icon" title="Edit label"></span>
+          <div class="slot-inner" id="saved-coords-0">coordinate slot 0...</div>
+          <span class="hotkey-icon">q</span>
         </div>
         <div class="saved-slot-item" id="slot-saved-coords-1">
-          <div class="slot-inner" id="saved-coords-1">Coordinate slot 1 ...</div>
-          <span class="edit-icon" title="Edit label"></span>
+          <div class="slot-inner" id="saved-coords-1">coordinate slot 1...</div>
+          <span class="hotkey-icon">1</span>
+          <span class="edit-btn" title="edit label">edit</span>
         </div>
         <div class="saved-slot-item" id="slot-saved-coords-2">
-          <div class="slot-inner" id="saved-coords-2">Coordinate slot 2 ...</div>
-          <span class="edit-icon" title="Edit label"></span>
+          <div class="slot-inner" id="saved-coords-2">coordinate slot 2...</div>
+          <span class="hotkey-icon">2</span>
+          <span class="edit-btn" title="edit label">edit</span>
         </div>
         <div class="saved-slot-item" id="slot-saved-coords-3">
-          <div class="slot-inner" id="saved-coords-3">Coordinate slot 3 ...</div>
-          <span class="edit-icon" title="Edit label"></span>
+          <div class="slot-inner" id="saved-coords-3">coordinate slot 3...</div>
+          <span class="hotkey-icon">3</span>
+          <span class="edit-btn" title="edit label">edit</span>
         </div>
       </div>
-      <button id="navigate-url">Move to coordinates</button>
+      <button id="navigate-url">move to coordinates <span class="button-hotkey">g</span></button>
     </section>
   </div>
+  <script src="src/parsers/coordinateParser.js"></script>
   <script src="src/utils/cliParser.js"></script>
+  <script src="src/utils/geocoder.js"></script>
+  <script src="src/core/storageManager.js"></script>
+  <script src="src/core/browserManager.js"></script>
+  <script src="src/ui/uiComponents.js"></script>
   <script src="urlUtils.js"></script>
   <script src="ui.js"></script>
+  <script src="src/core/app.js"></script>
 </body>
 </html>

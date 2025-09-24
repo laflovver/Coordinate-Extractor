@@ -24,10 +24,28 @@ class CoordinateExtractorApp {
    */
   async init() {
     try {
+      // Check if required modules are available
+      console.log('App init - checking modules:');
+      console.log('CoordinateParser:', typeof CoordinateParser);
+      console.log('StorageManager:', typeof StorageManager);
+      console.log('BrowserManager:', typeof BrowserManager);
+      console.log('UIComponents:', typeof UIComponents);
+      
+      if (typeof CoordinateParser === 'undefined') {
+        throw new Error("CoordinateParser is not defined");
+      }
+      if (typeof StorageManager === 'undefined') {
+        throw new Error("StorageManager is not defined");
+      }
+      if (typeof BrowserManager === 'undefined') {
+        throw new Error("BrowserManager is not defined");
+      }
+      if (typeof UIComponents === 'undefined') {
+        throw new Error("UIComponents is not defined");
+      }
+      
       // Initialize UI components
       UIComponents.init();
-      UIComponents.Logger.log("Coordinate Extractor loaded.", "info");
-      
       // Load and display saved coordinates
       await this.loadStoredCoordinates();
       
@@ -36,13 +54,12 @@ class CoordinateExtractorApp {
       
       // Setup event handlers
       this.setupEventListeners();
-      
-      UIComponents.Logger.log("Application initialized successfully.", "success");
     } catch (error) {
       UIComponents.Logger.log("Failed to initialize app: " + error.message, "error");
       console.error("App initialization error:", error);
     }
   }
+
 
   /**
    * Загружает сохраненные координаты из хранилища
@@ -72,22 +89,256 @@ class CoordinateExtractorApp {
   }
 
   /**
+   * Обработка клавиш в полях ввода
+   */
+  handleInputFieldKeys(e) {
+    if ((e.code === "Delete" || e.code === "Backspace") && this.activeSlotId) {
+      e.preventDefault();
+      this.clearActiveSlot();
+    }
+  }
+
+  /**
+   * Обработка глобальных горячих клавиш
+   */
+  handleGlobalHotkeys(e) {
+    switch (e.code) {
+      case "KeyC":
+        e.preventDefault();
+        this.handleCopyToClipboard();
+        break;
+      case "KeyV":
+        e.preventDefault();
+        this.handlePasteFromClipboard();
+        break;
+      case "KeyG":
+        e.preventDefault();
+        this.handleNavigateToCoordinates();
+        break;
+      case "KeyE":
+      case "KeyУ": // Russian layout
+        e.preventDefault();
+        this.handleEditSlot();
+        break;
+      case "KeyQ":
+      case "KeyЙ": // Russian layout
+        e.preventDefault();
+        this.selectSlot(0);
+        break;
+      case "Digit1":
+        e.preventDefault();
+        this.selectSlot(1);
+        break;
+      case "Digit2":
+        e.preventDefault();
+        this.selectSlot(2);
+        break;
+      case "Digit3":
+        e.preventDefault();
+        this.selectSlot(3);
+        break;
+      case "Backspace":
+      case "Delete":
+        e.preventDefault();
+        this.clearActiveSlot();
+        break;
+    }
+  }
+
+  /**
+   * Копирование координат в буфер обмена
+   */
+  async handleCopyToClipboard() {
+    try {
+      const coords = this.getActiveSlotCoordinates();
+      if (!coords) {
+        return;
+      }
+
+      const cliString = this.formatCoordinatesAsCLI(coords);
+      await navigator.clipboard.writeText(cliString);
+    } catch (error) {
+      console.error("Clipboard error:", error);
+    }
+  }
+
+
+  /**
+   * Добавляет название места к координатам
+   * @param {Object} coords - Координаты
+   * @param {number} slotIndex - Индекс слота
+   */
+  async addLocationName(coords, slotIndex) {
+    try {
+      if (typeof Geocoder === 'undefined') {
+        return;
+      }
+      
+      // Показываем индикатор загрузки
+      const slotElement = document.getElementById(`saved-coords-${slotIndex}`);
+      if (slotElement) {
+        slotElement.textContent = 'Loading location...';
+      }
+      
+      // Получаем название места
+      const locationName = await Geocoder.reverseGeocode(coords.lat, coords.lon);
+      
+      if (locationName) {
+        const shortName = Geocoder.createShortName(locationName);
+        
+        // Обновляем координаты с названием
+        const updatedCoords = {
+          ...coords,
+          name: shortName,
+          fullName: locationName,
+          labelColor: ""
+        };
+        
+        await StorageManager.setSlot(slotIndex, updatedCoords);
+        
+        // Обновляем UI после добавления названия
+        this.refreshUI();
+      }
+    } catch (error) {
+      console.error('Error adding location name:', error);
+    }
+  }
+  
+  
+  /**
+   * Навигация к координатам
+   */
+  async handleNavigateToCoordinates() {
+    const coords = this.getActiveSlotCoordinates();
+    if (!coords) {
+      return;
+    }
+
+    try {
+      await BrowserManager.updateActiveTabWithCoordinates(coords);
+    } catch (error) {
+      console.error("Navigation error:", error);
+    }
+  }
+
+  /**
+   * Редактирование слота
+   */
+  handleEditSlot() {
+    const slotIndex = this.getActiveSlotIndex();
+    if (slotIndex === 0) return; // Slot 0 is not editable
+
+    const slotId = `saved-coords-${slotIndex}`;
+    const slotElement = document.getElementById(slotId);
+    if (slotElement) {
+      UIComponents.startSlotEdit(slotElement, slotIndex);
+    }
+  }
+
+  /**
+   * Выбор слота
+   */
+  selectSlot(slotIndex) {
+    this.activeSlotId = `saved-coords-${slotIndex}`;
+    this.updateSlotSelection();
+  }
+
+  /**
+   * Очистка активного слота
+   */
+  async clearActiveSlot() {
+    if (!this.activeSlotId) return;
+
+    const slotIndex = this.getActiveSlotIndex();
+    await StorageManager.setSlot(slotIndex, null);
+    this.refreshUI();
+  }
+
+  /**
+   * Получение координат активного слота
+   */
+  getActiveSlotCoordinates() {
+    const slotIndex = this.getActiveSlotIndex();
+    return StorageManager.getSlot(slotIndex);
+  }
+
+  /**
+   * Получение индекса активного слота
+   */
+  getActiveSlotIndex() {
+    return parseInt(this.activeSlotId.split('-').pop());
+  }
+
+  /**
+   * Обновление визуального выделения слотов
+   */
+  updateSlotSelection() {
+    // Remove previous selection
+    document.querySelectorAll('.saved-slot-item').forEach(item => {
+      item.classList.remove('selected-saved');
+    });
+
+    // Add selection to active slot
+    const activeSlot = document.getElementById(`slot-${this.activeSlotId}`);
+    if (activeSlot) {
+      activeSlot.classList.add('selected-saved');
+    }
+  }
+
+  /**
+   * Форматирование координат в CLI формат
+   */
+  formatCoordinatesAsCLI(coords) {
+    const parts = [`--lon ${coords.lon}`, `--lat ${coords.lat}`];
+    if (coords.zoom !== undefined) parts.push(`--zoom ${coords.zoom}`);
+    if (coords.bearing !== undefined) parts.push(`--bearing ${coords.bearing}`);
+    if (coords.pitch !== undefined) parts.push(`--pitch ${coords.pitch}`);
+    return parts.join(' ');
+  }
+
+  /**
+   * Парсинг CLI строки в координаты
+   */
+  parseCLIString(cliString) {
+    if (typeof window !== 'undefined' && window.CliParser) {
+      return window.CliParser.parse(cliString);
+    }
+    
+    // Fallback parsing
+    const parts = cliString.split(/\s+/);
+    const result = {};
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i].startsWith("--")) {
+        const key = parts[i].substring(2);
+        const value = parts[i + 1];
+        if (value && !isNaN(parseFloat(value))) {
+          result[key] = parseFloat(value);
+        }
+      }
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  }
+
+  /**
+   * Обновление UI
+   */
+  refreshUI() {
+    this.loadStoredCoordinates();
+  }
+
+  /**
    * Извлекает координаты из URL активной вкладки
    */
   async extractCurrentTabCoordinates() {
     const currentUrl = await BrowserManager.getActiveTabUrl();
     
     if (!currentUrl) {
-      UIComponents.Logger.log("No active tab found.", "error");
       return;
     }
 
-    UIComponents.Logger.log("Active tab URL: " + currentUrl, "info");
-    
     const coords = CoordinateParser.extractFromUrl(currentUrl);
+    
     if (coords) {
-      UIComponents.Logger.log("Coordinates extracted: " + JSON.stringify(coords), "success");
-      
       // Save to slot 0 and display
       await StorageManager.setSlot(0, { ...coords, name: "", labelColor: "" });
       UIComponents.CoordinateDisplay.display(coords);
@@ -98,8 +349,9 @@ class CoordinateExtractorApp {
         const cliString = CoordinateParser.formatToCli(coords);
         UIComponents.SlotRenderer.renderContent(slot0Element, cliString);
       }
+      
+      // Слот 0 не должен автоматически определять название места
     } else {
-      UIComponents.Logger.log("Coordinates not found in URL.", "error");
       const slot0Element = document.getElementById("saved-coords-0");
       if (slot0Element) {
         slot0Element.textContent = "Coordinates not found";
@@ -160,16 +412,21 @@ class CoordinateExtractorApp {
           const slotIndex = parseInt(this.activeSlotId.split("-").pop(), 10);
           const currentSlot = await StorageManager.getSlot(slotIndex);
           
-          await StorageManager.setSlot(slotIndex, {
-            ...coords,
-            name: currentSlot?.name || "",
-            labelColor: currentSlot?.labelColor || ""
-          });
-          
-          const element = document.getElementById(this.activeSlotId);
-          if (element) {
-            const displayText = StorageManager.getSlotDisplayText(await StorageManager.getSlot(slotIndex), slotIndex);
-            UIComponents.SlotRenderer.renderContent(element, displayText, currentSlot?.labelColor);
+          // Для слотов 1, 2, 3 добавляем автоматическое именование
+          if (slotIndex > 0 && coords.lat && coords.lon) {
+            await this.addLocationName(coords, slotIndex);
+          } else {
+            await StorageManager.setSlot(slotIndex, {
+              ...coords,
+              name: currentSlot?.name || "",
+              labelColor: currentSlot?.labelColor || ""
+            });
+            
+            const element = document.getElementById(this.activeSlotId);
+            if (element) {
+              const displayText = StorageManager.getSlotDisplayText(await StorageManager.getSlot(slotIndex), slotIndex);
+              UIComponents.SlotRenderer.renderContent(element, displayText, currentSlot?.labelColor);
+            }
           }
         } else {
           // Display in slot 0
@@ -180,7 +437,6 @@ class CoordinateExtractorApp {
         }
         
         this.clipboardCoords = coords;
-        UIComponents.Logger.log("Coordinates parsed from clipboard: " + JSON.stringify(coords), "success");
       } else {
         UIComponents.Logger.log("Failed to parse coordinates from clipboard.", "error");
       }
@@ -295,14 +551,6 @@ class CoordinateExtractorApp {
     });
   }
 
-  /**
-   * Выбирает слот по индексу
-   * @param {number} slotIndex - Индекс слота
-   */
-  selectSlot(slotIndex) {
-    UIComponents.SlotRenderer.selectSlot(slotIndex);
-    this.activeSlotId = `saved-coords-${slotIndex}`;
-  }
 
   /**
    * Очищает слот по индексу
@@ -456,6 +704,9 @@ class CoordinateExtractorApp {
       });
     });
   }
+
+
+
 }
 
 // Export for use in extension

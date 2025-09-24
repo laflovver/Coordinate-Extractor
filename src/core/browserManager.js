@@ -143,11 +143,13 @@ class BrowserManager {
     return {
       match: (url) => url.hostname.includes("google.com") && url.pathname.includes("/@"),
       transform: (url) => {
-        const parts = currentUrlStr.split("/@");
-        if (parts.length > 1) {
-          const segments = parts[1].split("/");
+        // Match the pattern /@lat,lon,zoom followed by optional parameters
+        const match = currentUrlStr.match(/^(.+\/@)[^\/]+(.*)$/);
+        if (match) {
+          const prefix = match[1];
+          const suffix = match[2];
           const newCoordinatesSegment = `${coords.lat},${coords.lon},${coords.zoom}z`;
-          return parts[0] + "/@" + newCoordinatesSegment + "/" + segments.slice(1).join("/");
+          return prefix + newCoordinatesSegment + suffix;
         }
         return null;
       }

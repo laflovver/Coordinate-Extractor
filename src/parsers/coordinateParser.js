@@ -7,6 +7,8 @@
  * @property {number} zoom - Масштаб
  * @property {number} bearing - Направление
  * @property {number} pitch - Наклон
+ * 
+ * Version: 1.1 - Fixed hashQueryParams error
  */
 
 /**
@@ -25,6 +27,7 @@ class CoordinateParser {
       
       // Array of extractors for different URL formats
       const extractors = [
+        this._createMapboxExtractor(),
         this._createPathExtractor(),
         this._createHashQueryExtractor(),
         this._createHashExtractor(),
@@ -32,11 +35,16 @@ class CoordinateParser {
       ];
 
       for (const extractor of extractors) {
-        if (extractor.match(urlObj)) {
-          const result = extractor.transform(urlObj);
-          if (result && this._validateCoordinates(result)) {
-            return result;
+        try {
+          if (extractor.match(urlObj)) {
+            const result = extractor.transform(urlObj);
+            
+            if (result && this._validateCoordinates(result)) {
+              return result;
+            }
           }
+        } catch (extractorError) {
+          console.error('Error in extractor', extractor.name || 'unnamed', ':', extractorError);
         }
       }
       
@@ -93,8 +101,213 @@ class CoordinateParser {
 
   // Private methods for extractors
 
+  static _createMapboxExtractor() {
+    return {
+      name: 'Mapbox',
+      match: (u) => {
+        // Check if it's a Mapbox URL
+        const isMapbox = (u.hostname.includes('mapbox.com') || u.hostname.includes('sites.mapbox.com') || u.hostname.includes('labs.mapbox.com'));
+        const hasCenterInHash = u.hash.includes('center=');
+        const hasCenterInSearch = u.search.includes('center=');
+        const hasQuery = u.hash.includes('?') || u.search.includes('?');
+        const hasHashCoords = u.hash.match(/#[\d\.]+\/[\d\.]+\/[\d\.]+/); // Format: #zoom/lat/lon
+        const hasStandardStyleCoords = u.hash.match(/#\d+\.?\d*\/\d+\.?\d*\/-?\d+\.?\d*\/\d+\.?\d*(?:\/\d+\.?\d*)?/); // Format: #zoom/lat/lon/bearing/pitch or #zoom/lat/lon/bearing
+        
+        return isMapbox && ((hasCenterInHash || hasCenterInSearch) && hasQuery || hasHashCoords || hasStandardStyleCoords);
+      },
+      transform: (u) => {
+        // Check for standard style coordinates format: #zoom/lat/lon/bearing/pitch
+        const standardStyleMatch = u.hash.match(/#(\d+\.?\d*)\/(\d+\.?\d*)\/(-?\d+\.?\d*)\/(\d+\.?\d*)\/(\d+\.?\d*)/);
+        if (standardStyleMatch) {
+          const zoom = parseFloat(standardStyleMatch[1]);
+          const lat = parseFloat(standardStyleMatch[2]);
+          const lon = parseFloat(standardStyleMatch[3]);
+          const bearing = parseFloat(standardStyleMatch[4]);
+          const pitch = parseFloat(standardStyleMatch[5]);
+          
+          return { lat, lon, zoom, bearing, pitch };
+        }
+
+        // Check for standard style coordinates format with 4 parameters: #zoom/lat/lon/bearing
+        const standardStyleMatch4 = u.hash.match(/#(\d+\.?\d*)\/(\d+\.?\d*)\/(-?\d+\.?\d*)\/(\d+\.?\d*)/);
+        if (standardStyleMatch4) {
+          const zoom = parseFloat(standardStyleMatch4[1]);
+          const lat = parseFloat(standardStyleMatch4[2]);
+          const lon = parseFloat(standardStyleMatch4[3]);
+          const bearing = parseFloat(standardStyleMatch4[4]);
+          
+          return { lat, lon, zoom, bearing };
+        }
+
+        // Check for hash coordinates format: #zoom/lat/lon/bearing/pitch
+        const hashCoordsMatch = u.hash.match(/#([\d\.]+)\/([\d\.]+)\/([\d\.]+)(?:\/([\d\.]+))?(?:\/([\d\.]+))?/);
+        if (hashCoordsMatch) {
+          const zoom = parseFloat(hashCoordsMatch[1]);
+          const lat = parseFloat(hashCoordsMatch[2]);
+          const lon = parseFloat(hashCoordsMatch[3]);
+          const bearing = hashCoordsMatch[4] ? parseFloat(hashCoordsMatch[4]) : 0;
+          const pitch = hashCoordsMatch[5] ? parseFloat(hashCoordsMatch[5]) : 0;
+          
+          return { lat, lon, zoom, bearing, pitch };
+        }
+        
+        // Try to get center parameter from hash first, then from search
+        let centerValue = null;
+        let queryParams = null;
+        
+        if (u.hash.includes('?')) {
+          const hashQuery = u.hash.substring(u.hash.indexOf('?'));
+          queryParams = new URLSearchParams(hashQuery);
+          if (queryParams.has('center')) {
+            centerValue = queryParams.get('center');
+            console.log('Found center in hash:', centerValue);
+            // URLSearchParams decodes %2F to /, so we need to split by /
+            if (centerValue && centerValue.includes('/')) {
+              centerValue = centerValue.replace(/\//g, '%2F');
+              console.log('Converted / to %2F:', centerValue);
+            }
+          }
+        }
+        
+        if (!centerValue && u.search.includes('center=')) {
+          queryParams = new URLSearchParams(u.search);
+          if (queryParams.has('center')) {
+            centerValue = queryParams.get('center');
+            console.log('Found center in search:', centerValue);
+            // URLSearchParams decodes %2F to /, so we need to split by /
+            if (centerValue && centerValue.includes('/')) {
+              centerValue = centerValue.replace(/\//g, '%2F');
+              console.log('Converted / to %2F:', centerValue);
+            }
+          }
+        }
+        
+        if (centerValue) {
+          
+          // Split by %2F directly since URLSearchParams doesn't decode %2F
+          let parts = centerValue.split('%2F');
+          
+          // Filter out empty parts and non-numeric parts
+          parts = parts.filter(part => {
+            const trimmed = part.trim();
+            return trimmed !== '' && !isNaN(parseFloat(trimmed));
+          });
+          
+          // If we don't have enough numeric parts, try a different approach
+          if (parts.length < 3) {
+            // Try to extract coordinates from the hash directly
+            const hashMatch = u.hash.match(/center=([^&]+)/);
+            if (hashMatch) {
+              const centerParam = hashMatch[1];
+              parts = centerParam.split('%2F');
+              parts = parts.filter(part => {
+                const trimmed = part.trim();
+                return trimmed !== '' && !isNaN(parseFloat(trimmed));
+              });
+            }
+          }
+          
+          // If we still don't have enough parts, try splitting the entire hash
+          if (parts.length < 3) {
+            const hashParts = u.hash.split('%2F');
+            parts = hashParts.filter(part => {
+              const trimmed = part.trim();
+              return trimmed !== '' && !isNaN(parseFloat(trimmed));
+            });
+          }
+          
+          // If we still don't have enough parts, try a more aggressive approach
+          if (parts.length < 3) {
+            // Extract all numeric values from the hash
+            const numericMatches = u.hash.match(/\d+\.?\d*/g);
+            if (numericMatches && numericMatches.length >= 3) {
+              parts = numericMatches.slice(0, 3);
+            }
+          }
+          
+          // If we still don't have enough parts, try extracting from the center parameter more carefully
+          if (parts.length < 3) {
+            const centerMatch = u.hash.match(/center=([^&]+)/);
+            if (centerMatch) {
+              const centerParam = centerMatch[1];
+              // Try different splitting approaches
+              const splitAttempts = [
+                centerParam.split('%2F'),
+                centerParam.split('/'),
+                centerParam.split(/\D+/)
+              ];
+              
+              for (const attempt of splitAttempts) {
+                const filtered = attempt.filter(part => {
+                  const trimmed = part.trim();
+                  return trimmed !== '' && !isNaN(parseFloat(trimmed));
+                });
+                if (filtered.length >= 3) {
+                  parts = filtered;
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (parts.length >= 3) {
+            // Mapbox format: lon/lat/zoom (first value is longitude, second is latitude)
+            // But in this URL format, it seems to be lat/lon/zoom, so we need to swap them
+            const lat = parseFloat(parts[0]);
+            const lon = parseFloat(parts[1]);
+            const zoom = parseFloat(parts[2]);
+            
+            // Validate coordinates
+            if (isNaN(lon) || isNaN(lat) || isNaN(zoom)) {
+              return null;
+            }
+            
+            // Additional parameters that might be present in center
+            let bearing = 0, pitch = 0;
+            if (parts.length >= 4) {
+              bearing = parseFloat(parts[3]) || 0;
+            }
+            if (parts.length >= 5) {
+              pitch = parseFloat(parts[4]) || 0;
+            }
+            
+            // Check for additional parameters in URL
+            let urlBearing = null;
+            let urlPitch = null;
+            
+            if (queryParams) {
+              urlBearing = queryParams.get('bearing');
+              urlPitch = queryParams.get('pitch');
+            }
+            
+            if (urlBearing) {
+              bearing = parseFloat(urlBearing) || bearing;
+            }
+            if (urlPitch) {
+              pitch = parseFloat(urlPitch) || pitch;
+            }
+            
+            const result = {
+              lat: lat,
+              lon: lon,
+              zoom: zoom,
+              bearing: bearing,
+              pitch: pitch
+            };
+            
+            
+            return result;
+          }
+        }
+        
+        return null;
+      }
+    };
+  }
+
   static _createPathExtractor() {
     return {
+      name: 'Path',
       match: (u) => u.pathname.includes("/@"),
       transform: (u) => {
         const parts = u.pathname.split("/@");
@@ -126,6 +339,7 @@ class CoordinateParser {
 
   static _createSearchParamsExtractor(urlObj) {
     return {
+      name: 'SearchParams',
       match: (u) => {
         const params = new URLSearchParams(u.search);
         const hashParams = new URLSearchParams(u.hash.replace("#", "?"));
@@ -149,20 +363,32 @@ class CoordinateParser {
 
   static _createHashQueryExtractor() {
     return {
-      match: (u) => u.hash.indexOf("?") !== -1,
+      name: 'HashQuery',
+      match: (u) => {
+        // Don't match Mapbox URLs - they should be handled by Mapbox extractor
+        const isMapbox = (u.hostname.includes('mapbox.com') || u.hostname.includes('sites.mapbox.com'));
+        if (isMapbox) {
+          return false;
+        }
+        return u.hash.indexOf("?") !== -1;
+      },
       transform: (u) => {
         const hashQuery = u.hash.substring(u.hash.indexOf("?"));
         const hashQueryParams = new URLSearchParams(hashQuery);
         
         if (hashQueryParams.has("center")) {
-          const parts = decodeURIComponent(hashQueryParams.get("center")).split("/");
-          if (parts.length === 3) {
+          const centerValue = hashQueryParams.get("center");
+          // Split by %2F (URL-encoded forward slash) for Mapbox format
+          const parts = centerValue.split("%2F");
+          if (parts.length >= 3) {
+            const bearing = parts.length >= 4 ? parseFloat(parts[3]) : 0;
+            const pitch = parts.length >= 5 ? parseFloat(parts[4]) : 0;
             return {
-              zoom: parseFloat(parts[0]),
-              lat: parseFloat(parts[1]),
-              lon: parseFloat(parts[2]),
-              bearing: 0,
-              pitch: 0
+              lon: parseFloat(parts[0]), // longitude first
+              lat: parseFloat(parts[1]), // latitude second
+              zoom: parseFloat(parts[2]), // zoom third
+              bearing: bearing,
+              pitch: pitch
             };
           }
         }
@@ -187,7 +413,15 @@ class CoordinateParser {
 
   static _createHashExtractor() {
     return {
-      match: (u) => Boolean(u.hash),
+      name: 'Hash',
+      match: (u) => {
+        // Don't match Mapbox URLs - they should be handled by Mapbox extractor
+        const isMapbox = (u.hostname.includes('mapbox.com') || u.hostname.includes('sites.mapbox.com'));
+        if (isMapbox) {
+          return false;
+        }
+        return Boolean(u.hash);
+      },
       transform: (u) => {
         const cleanHash = u.hash.replace(/^#\/?/, "");
         const segments = cleanHash.split("/");
@@ -230,5 +464,10 @@ class CoordinateParser {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = CoordinateParser;
 } else {
+  window.CoordinateParser = CoordinateParser;
+}
+
+// Also make it available globally for popup
+if (typeof window !== 'undefined') {
   window.CoordinateParser = CoordinateParser;
 }

@@ -107,8 +107,15 @@ function updateActiveTabUrlWithCoordinates(coords) {
       },
       {
         match: (url) => url.hash.includes("center="),
-        transform: (url) =>
-          currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.zoom}/${coords.lon}/${coords.lat}`)
+        transform: (url) => {
+          // Check if it's Mapbox Sites format (lon/lat/zoom)
+          if (hostname.includes("sites.mapbox.com")) {
+            return currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.lon}%2F${coords.lat}%2F${coords.zoom}`);
+          } else {
+            // Default format (zoom/lon/lat)
+            return currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.zoom}/${coords.lon}/${coords.lat}`);
+          }
+        }
       },
       {
         match: (url) => url.searchParams.has("lat") || url.searchParams.has("lon"),
@@ -277,6 +284,40 @@ function extractCoordinates(url) {
                 parseFloat(coords[0]),
                 parseFloat(coords[1]),
                 zoom
+              );
+            }
+          }
+          return null;
+        }
+      },
+      
+      // Mapbox Sites (sites.mapbox.com with center parameter)
+      {
+        match: (u) => u.hostname.includes("sites.mapbox.com") && (u.search.includes("center=") || u.hash.includes("center=")),
+        transform: (u) => {
+          // Try to get center parameter from search first, then from hash
+          let centerValue = null;
+          if (u.search.includes("center=")) {
+            const searchParams = new URLSearchParams(u.search);
+            centerValue = searchParams.get("center");
+          } else if (u.hash.includes("center=")) {
+            const hashQuery = u.hash.substring(u.hash.indexOf("?"));
+            const hashParams = new URLSearchParams(hashQuery);
+            centerValue = hashParams.get("center");
+          }
+          
+          if (centerValue) {
+            // Split by %2F (URL-encoded forward slash)
+            const parts = centerValue.split("%2F");
+            if (parts.length >= 3) {
+              const bearing = parts.length >= 4 ? parseFloat(parts[3]) : undefined;
+              const pitch = parts.length >= 5 ? parseFloat(parts[4]) : undefined;
+              return createCoordinateObject(
+                parseFloat(parts[1]), // lat
+                parseFloat(parts[0]), // lon
+                parseFloat(parts[2]), // zoom
+                bearing,
+                pitch
               );
             }
           }

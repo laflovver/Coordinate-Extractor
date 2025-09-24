@@ -102,11 +102,54 @@ class UIComponents {
         coords = parts.slice(1).join(" - ").trim();
       }
       
-      const labelColor = storedLabelColor || (label ? UIComponents.Utils.getRandomReadableColor() : "");
+      const labelColor = storedLabelColor || "";
       
-      element.innerHTML = label
-        ? `<span class="slot-label" style="color: ${labelColor};">${label} - </span><span class="slot-coords">${coords}</span>`
-        : `<span class="slot-coords">${coords}</span>`;
+      // Clear content
+      element.innerHTML = "";
+      
+      if (label) {
+        // Remove existing "..." from label if it exists
+        const cleanLabel = label.replace(/^\.\.\.\s*/, '');
+        
+        // Add visual indicator before label
+        const indicatorSpan = document.createElement("span");
+        indicatorSpan.className = "slot-indicator";
+        indicatorSpan.textContent = "...";
+        element.appendChild(indicatorSpan);
+        
+        const labelSpan = document.createElement("span");
+        labelSpan.className = "slot-label";
+        labelSpan.textContent = cleanLabel;
+        if (labelColor) {
+          labelSpan.style.color = labelColor;
+        }
+        element.appendChild(labelSpan);
+        
+        // Don't show coordinates when there's a label - they will be shown on hover
+        // The coordinates are stored in data attribute for later use
+        element.dataset.coordinates = coords;
+      } else {
+        // Add normal coordinates when there's no label
+        const coordsSpan = document.createElement("span");
+        coordsSpan.className = "slot-coords";
+        coordsSpan.textContent = coords;
+        element.appendChild(coordsSpan);
+      }
+      
+      // Add hidden coordinates that appear on hover
+      const hiddenCoordsSpan = document.createElement("span");
+      hiddenCoordsSpan.className = "slot-coords-hidden";
+      hiddenCoordsSpan.textContent = coords;
+      element.appendChild(hiddenCoordsSpan);
+      
+      // Add hover event to scroll to end of coordinates (like cli-output)
+      const slotItem = element.closest('.saved-slot-item');
+      if (slotItem) {
+        slotItem.addEventListener('mouseenter', () => {
+          // Simple scroll to end like cli-output
+          hiddenCoordsSpan.scrollLeft = hiddenCoordsSpan.scrollWidth;
+        });
+      }
       
       element.scrollTop = 0;
     }
@@ -169,7 +212,6 @@ class UIComponents {
     static async copy(text) {
       try {
         await navigator.clipboard.writeText(text);
-        UIComponents.Logger.log("Text copied to clipboard.", "success");
         return true;
       } catch (error) {
         UIComponents.Logger.log("Clipboard write error: " + error, "error");
@@ -184,7 +226,6 @@ class UIComponents {
     static async read() {
       try {
         const text = await navigator.clipboard.readText();
-        UIComponents.Logger.log("Clipboard text read: " + text, "info");
         return text;
       } catch (error) {
         UIComponents.Logger.log("Clipboard read error: " + error, "error");
