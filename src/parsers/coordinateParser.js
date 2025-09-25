@@ -112,10 +112,23 @@ class CoordinateParser {
         const hasQuery = u.hash.includes('?') || u.search.includes('?');
         const hasHashCoords = u.hash.match(/#[\d\.]+\/[\d\.]+\/[\d\.]+/); // Format: #zoom/lat/lon
               const hasStandardStyleCoords = u.hash.match(/#\d+\.?\d*\/\d+\.?\d*\/-?\d+\.?\d*\/-?\d+\.?\d*(?:\/\d+\.?\d*)?/); // Format: #zoom/lat/lon/bearing/pitch or #zoom/lat/lon/bearing
+        const hasConsoleMapboxCoords = u.hash.match(/#\d+\.?\d*\/\d+\.?\d*\/-?\d+\.?\d*\/\d+\.?\d*\/\d+\.?\d*/); // Format: #zoom/lat/lon/bearing/pitch for console.mapbox.com
         
-        return isMapbox && ((hasCenterInHash || hasCenterInSearch) && hasQuery || hasHashCoords || hasStandardStyleCoords);
+        return isMapbox && ((hasCenterInHash || hasCenterInSearch) && hasQuery || hasHashCoords || hasStandardStyleCoords || hasConsoleMapboxCoords);
       },
       transform: (u) => {
+        // Check for console.mapbox.com format: #zoom/lat/lon/bearing/pitch
+        const consoleMapboxMatch = u.hash.match(/#(\d+\.?\d*)\/(\d+\.?\d*)\/(-?\d+\.?\d*)\/(\d+\.?\d*)\/(\d+\.?\d*)/);
+        if (consoleMapboxMatch) {
+          const zoom = parseFloat(consoleMapboxMatch[1]);
+          const lat = parseFloat(consoleMapboxMatch[2]);
+          const lon = parseFloat(consoleMapboxMatch[3]);
+          const bearing = parseFloat(consoleMapboxMatch[4]);
+          const pitch = parseFloat(consoleMapboxMatch[5]);
+          
+          return { lat, lon, zoom, bearing, pitch };
+        }
+
         // Check for standard style coordinates format: #zoom/lat/lon/bearing/pitch
         const standardStyleMatch = u.hash.match(/#(\d+\.?\d*)\/(\d+\.?\d*)\/(-?\d+\.?\d*)\/(\d+\.?\d*)\/(\d+\.?\d*)/);
         if (standardStyleMatch) {

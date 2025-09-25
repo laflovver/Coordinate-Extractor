@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Console Mapbox URL</title>
+</head>
+<body>
+    <h1>Test Console Mapbox URL Parsing</h1>
+    <div id="result"></div>
+
+    <script src="src/parsers/coordinateParser.js"></script>
+    <script>
+        const testUrl = 'https://console.mapbox.com/studio/styles/mapbox-3dln/cmerb8wat019801qw5c1f9azs/edit/#16.12/48.13898/11.574017/53.9/51';
+        console.log('Testing URL:', testUrl);
+        
+        const result = CoordinateParser.extractFromUrl(testUrl);
+        console.log('Result:', result);
+        
+        document.getElementById('result').innerHTML = `
+            <p><strong>URL:</strong> ${testUrl}</p>
+            <p><strong>Result:</strong> ${JSON.stringify(result, null, 2)}</p>
+            <p><strong>Status:</strong> ${result ? 'SUCCESS' : 'FAILED'}</p>
+        `;
+    </script>
+</body>
+</html>
