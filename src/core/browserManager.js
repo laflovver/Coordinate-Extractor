@@ -103,6 +103,7 @@ class BrowserManager {
       this._createMapboxRule(currentUrl, mainPart, coords),
       this._createHashMapRule(currentUrlStr, coords),
       this._createHashCenterRule(currentUrlStr, coords),
+      this._createHashSlashRule(currentUrl, mainPart, coords),
       this._createSearchParamsRule(currentUrl, coords)
     ];
 
@@ -162,14 +163,19 @@ class BrowserManager {
       transform: (url) => {
         const cleanHash = url.hash.replace(/^#\/?/, "");
         const segments = cleanHash.split("/");
-        if (segments.length === 3) {
-          return mainPart + `#${coords.zoom}/${coords.lat}/${coords.lon}/0/0`;
-        } else if (segments.length === 4) {
-          return mainPart + `#${coords.zoom}/${coords.lat}/${coords.lon}/${coords.bearing}/0`;
-        } else if (segments.length >= 5) {
-          return mainPart + `#${coords.zoom}/${coords.lat}/${coords.lon}/${coords.bearing}/${coords.pitch}`;
+        
+        // Build hash based on available coordinates
+        let hash = `#${coords.zoom}/${coords.lat}/${coords.lon}`;
+        
+        // Only add bearing and pitch if they exist in the original URL or are non-zero
+        if (segments.length >= 4 || (coords.bearing && coords.bearing !== 0)) {
+          hash += `/${coords.bearing || 0}`;
         }
-        return null;
+        if (segments.length >= 5 || (coords.pitch && coords.pitch !== 0)) {
+          hash += `/${coords.pitch || 0}`;
+        }
+        
+        return mainPart + hash;
       }
     };
   }
@@ -177,14 +183,41 @@ class BrowserManager {
   static _createHashMapRule(currentUrlStr, coords) {
     return {
       match: (url) => url.hash.includes("map="),
-      transform: (url) => currentUrlStr.replace(/(map=)[^&]+/, `$1${coords.zoom}/${coords.lon}/${coords.lat}`)
+      transform: (url) => currentUrlStr.replace(/(map=)[^&]+/, `$1${coords.zoom}/${coords.lat}/${coords.lon}`)
     };
   }
 
   static _createHashCenterRule(currentUrlStr, coords) {
     return {
       match: (url) => url.hash.includes("center="),
-      transform: (url) => currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.zoom}/${coords.lon}/${coords.lat}`)
+      transform: (url) => currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.lon}/${coords.lat}/${coords.zoom}`)
+    };
+  }
+
+  static _createHashSlashRule(currentUrl, mainPart, coords) {
+    return {
+      match: (url) => {
+        // Match universal hash format: #zoom/lat/lon or #zoom/lat/lon/bearing/pitch
+        const hashPattern = /#\d+\.?\d*\/-?\d+\.?\d*\/-?\d+\.?\d*/;
+        return url.hash && hashPattern.test(url.hash);
+      },
+      transform: (url) => {
+        const cleanHash = url.hash.replace(/^#\/?/, "");
+        const segments = cleanHash.split("/");
+        
+        // Build new hash
+        let hash = `#${coords.zoom}/${coords.lat}/${coords.lon}`;
+        
+        // Preserve bearing and pitch if they existed in original URL
+        if (segments.length >= 4 || (coords.bearing && coords.bearing !== 0)) {
+          hash += `/${coords.bearing || 0}`;
+        }
+        if (segments.length >= 5 || (coords.pitch && coords.pitch !== 0)) {
+          hash += `/${coords.pitch || 0}`;
+        }
+        
+        return mainPart + hash;
+      }
     };
   }
 
@@ -194,9 +227,10 @@ class BrowserManager {
       transform: (url) => {
         url.searchParams.set("lat", String(coords.lat));
         url.searchParams.set("lon", String(coords.lon));
-        url.searchParams.set("zoom", String(coords.zoom));
-        url.searchParams.set("pitch", String(coords.pitch));
-        url.searchParams.set("bearing", String(coords.bearing));
+        if (coords.zoom) url.searchParams.set("zoom", String(coords.zoom));
+        // Only add pitch and bearing if they exist and are non-zero
+        if (coords.pitch && coords.pitch !== 0) url.searchParams.set("pitch", String(coords.pitch));
+        if (coords.bearing && coords.bearing !== 0) url.searchParams.set("bearing", String(coords.bearing));
         return url.toString();
       }
     };

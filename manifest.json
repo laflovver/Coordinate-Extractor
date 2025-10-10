@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Coordinate Extractor",
-  "version": "3.0.0",
-  "description": "Extracts coordinates from the URL and updates them, supports hotkeys.",
+  "version": "3.1.0",
+  "description": "Fast coordinate extraction from map URLs. Universal parser with automatic location naming.",
   "icons": {
     "128": "image.png"
   },
