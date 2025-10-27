@@ -6,7 +6,6 @@ chrome.action.onClicked.addListener(async () => {
   } catch (error) {
     console.log("Popup not available, trying to open in new tab...", error.message);
     try {
-      // Fallback: open extension in new tab
       await chrome.tabs.create({ 
         url: chrome.runtime.getURL('popup.html'),
         active: true 
@@ -22,13 +21,11 @@ chrome.commands.onCommand.addListener(async (command) => {
   console.log("Command received:", command);
   if (command === "open-extension") {
     try {
-      // Try to open popup first
       await chrome.action.openPopup();
       console.log("Popup opened via command successfully");
     } catch (error) {
       console.log("Popup not available via command, trying to open in new tab...", error.message);
       try {
-        // Fallback: open extension in new tab
         await chrome.tabs.create({ 
           url: chrome.runtime.getURL('popup.html'),
           active: true 

@@ -17,6 +17,8 @@ class CoordinateExtractorApp {
       "saved-coords-2",
       "saved-coords-3"
     ];
+    
+    this.serviceModal = null;
   }
 
   /**
@@ -46,6 +48,14 @@ class CoordinateExtractorApp {
       
       // Initialize UI components
       UIComponents.init();
+      
+      // Initialize service modal
+      if (typeof ServiceModal !== 'undefined') {
+        this.serviceModal = new ServiceModal();
+        await this.serviceModal.init();
+        window.serviceModalInstance = this.serviceModal;
+      }
+      
       // Load and display saved coordinates
       await this.loadStoredCoordinates();
       
@@ -54,10 +64,34 @@ class CoordinateExtractorApp {
       
       // Setup event handlers
       this.setupEventListeners();
+      
+      // Store global instance
+      window.appInstance = this;
     } catch (error) {
       // UIComponents.Logger.log("Failed to initialize app: " + error.message, "error");
       console.error("App initialization error:", error);
     }
+  }
+  
+  /**
+   * Get active slot coordinates
+   */
+  async getActiveSlotCoordinates() {
+    if (this.activeSlotId && this.activeSlotId !== "saved-coords-0") {
+      const slotIndex = parseInt(this.activeSlotId.split("-").pop(), 10);
+      const slot = await StorageManager.getSlot(slotIndex);
+      if (slot && slot.lat && slot.lon) {
+        return slot;
+      }
+    }
+    
+    // Fallback: get from slot 0
+    const slot0 = await StorageManager.getSlot(0);
+    if (slot0 && slot0.lat && slot0.lon) {
+      return slot0;
+    }
+    
+    return null;
   }
 
 
@@ -535,9 +569,14 @@ class CoordinateExtractorApp {
         case "Digit1":
         case "Digit2":
         case "Digit3":
-          e.preventDefault();
-          const slotNumber = parseInt(e.code.replace("Digit", ""), 10);
-          this.selectSlot(slotNumber);
+        case "Digit4":
+          // Check if Option/Alt is pressed for slots
+          if (e.altKey || e.metaKey) {
+            e.preventDefault();
+            const slotNumber = parseInt(e.code.replace("Digit", ""), 10);
+            this.selectSlot(slotNumber);
+          }
+          // If no modifier, let services handle it (handled in serviceModal.js)
           break;
       }
     });

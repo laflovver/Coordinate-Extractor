@@ -10,6 +10,9 @@ A powerful Chrome extension that automatically extracts geographic coordinates (
 - **⌨️ Keyboard Shortcuts**: Quick actions with hotkeys
 - **🌐 Automatic Location Names**: Uses OpenStreetMap geocoding for slots 1-3
 - **🎨 Color-Coded Labels**: Customize slot names with colors
+- **🗺️ Service Navigation**: Quick access to multiple map services with drag-and-drop reordering
+- **🎯 Hotkeys for Services**: Direct navigation to services with keys 1-9
+- **🎨 Service Visual Identity**: Colored borders and background images based on service branding
 
 ---
 
@@ -40,16 +43,23 @@ When you open the popup, the extension automatically extracts coordinates from t
 
 ## ⌨️ Hotkeys
 
+### Coordinate Slots
 | Shortcut | Action |
 |----------|--------|
 | **Ctrl+Shift+F** | Open extension popup |
+| **Option+1, 2, 3, 4** | Select slot 0, 1, 2, or 3 |
 | **C** | Copy coordinates to clipboard |
 | **V** | Paste coordinates from clipboard |
-| **G** | Navigate to coordinates (update URL) |
+| **G** | Open service navigation modal |
 | **E** | Edit active slot's label |
 | **Q** | Select slot 0 |
-| **1, 2, 3** | Select slot 1, 2, or 3 |
 | **Delete/Backspace** | Clear active slot |
+
+### Service Navigation
+| Shortcut | Action |
+|----------|--------|
+| **1-9** | Navigate directly to service 1-9 |
+| **Drag & Drop** | Reorder services to your preference |
 
 ---
 
@@ -100,6 +110,23 @@ Slots 1-3 automatically fetch location names using OpenStreetMap's Nominatim API
 
 ---
 
+## 🗺️ Supported Map Services
+
+The extension supports navigation to multiple map services:
+- **Mapbox Standard** - Standard Mapbox style
+- **3D Buildings Box** - 3D building visualizations
+- **3DLN Demo Style** - 3D line navigation demo
+- **Google Maps** - Street and satellite imagery
+- **Google Earth** - 3D Earth view
+- **Direction Debug** - Mapbox directions debugging
+- **OpenStreetMap** - Open-source map data
+- **Bing Maps** - Microsoft mapping service
+- **Yandex Maps** - Russian mapping service
+
+You can add custom services by clicking the "+ Add Custom Service" button and providing a service name and URL template with example coordinates.
+
+---
+
 ## ⚠️ Common Issues
 
 | Issue | Solution |
@@ -123,7 +150,8 @@ src/
 ├── parsers/
 │   └── coordinateParser.js # Universal coordinate parser
 ├── ui/
-│   └── uiComponents.js     # UI rendering and interactions
+│   ├── uiComponents.js     # UI rendering and interactions
+│   └── serviceModal.js     # Service navigation with drag-and-drop
 └── utils/
     ├── cliParser.js        # CLI string parsing
     └── geocoder.js         # Location name fetching
@@ -140,12 +168,21 @@ src/
 ## 📝 Changelog
 
 ### v3.1.0
+- Added service navigation modal with drag-and-drop reordering
+- Implemented hotkeys 1-9 for direct service navigation
+- Added color-coded service buttons based on service branding
+- Added background images with blur effects for visual service identity
+- Support for pitch and bearing parameters in 3D map services
+- Service visibility toggle and custom service addition
+- Improved UI/UX with modern design inspired by 3D Buildings Box
+- Updated hotkeys: Option+1,2,3,4 for slot selection
+- Persistent service order and preferences in localStorage
+
+### v3.0.0
 - Improved coordinate parser (universal support)
 - Fixed bearing/pitch handling (only added when non-zero)
 - Better compatibility with various mapping services
 - Simplified codebase for easier maintenance
-
-### v3.0.0
 - Modular architecture refactoring
 - Automatic location naming with geocoding
 - Enhanced UI with animations

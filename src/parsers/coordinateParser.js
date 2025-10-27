@@ -33,6 +33,21 @@ const REGEX_PATTERNS = {
   llParam: /[?&]ll=(-?\d+\.?\d*)[,~%2C](-?\d+\.?\d*)/i,  // ll=lon,lat or ll=lon~lat
   cpParam: /[?&]cp=(-?\d+\.?\d*)[~%7E](-?\d+\.?\d*)/i,   // cp=lat~lon (Bing)
   
+  // Mapbox Console Directions Debug: map=lon,lat,zoom
+  mapboxConsoleMap: /[&#]map=(-?\d+\.?\d*),(-?\d+\.?\d*),([\d\.]+)([z]?)/,
+  
+  // Mapbox Console Directions Debug: route=lon1,lat1;lon2,lat2;...
+  mapboxConsoleRoute: /[&#]route=([^&]+)/,
+  
+  // Satellites.pro format: #lat,lon,zoom
+  satellitesProFormat: /#(\d+\.?\d*),(\d+\.?\d*),(\d+)/,
+  
+  // Mapillary format: ?lat=X&lng=Y&z=Z
+  mapillaryFormat: /[?&]lat=(-?\d+\.?\d*)[&]?.*?[?&]lng=(-?\d+\.?\d*)/i,
+  
+  // Planet.com format: /mosaic/MOSAIC_NAME/center/lon/lat/zoom
+  planetFormat: /\/mosaic\/[^\/]+\/center\/(-?\d+\.?\d*)\/(-?\d+\.?\d*)\/(\d+)/,
+  
   // Zoom parameter
   zoomParam: /[?&](?:z|zoom|lvl)=(\d+)/i,
 };
@@ -57,6 +72,12 @@ class CoordinateParser {
       
       // 1. Try path format (/@lat,lon,zoom)
       coords = this._extractFromPath(fullUrl);
+      if (coords && this._validateCoordinates(coords)) {
+        return this._normalizeCoordinates(coords);
+      }
+      
+      // 1.5. Try Planet.com format
+      coords = this._extractFromPlanet(fullUrl);
       if (coords && this._validateCoordinates(coords)) {
         return this._normalizeCoordinates(coords);
       }
@@ -99,6 +120,20 @@ class CoordinateParser {
       zoom: parseFloat(match[3]),
       bearing: 0,
       pitch: 0
+    };
+  }
+  
+  /**
+   * Extract from Planet.com format
+   */
+  static _extractFromPlanet(url) {
+    const match = url.match(REGEX_PATTERNS.planetFormat);
+    if (!match) return null;
+    
+    return {
+      lon: parseFloat(match[1]),
+      lat: parseFloat(match[2]),
+      zoom: parseFloat(match[3])
     };
   }
   
@@ -203,8 +238,56 @@ class CoordinateParser {
    * Extract from special parameter formats
    */
   static _extractFromSpecialParams(urlObj, fullUrl) {
+    // Try Mapbox Console Directions Debug: calculate average point from route
+    let match = fullUrl.match(REGEX_PATTERNS.mapboxConsoleRoute);
+    if (match) {
+      const routeValue = match[1];
+      const points = routeValue.split(';');
+      
+      // Parse all points and calculate average
+      const coords = points.map(point => {
+        const parts = point.split(',');
+        if (parts.length >= 2) {
+          return {
+            lon: parseFloat(parts[0]),
+            lat: parseFloat(parts[1])
+          };
+        }
+        return null;
+      }).filter(c => c !== null);
+      
+      if (coords.length > 0) {
+        // Calculate average coordinates
+        const avgLon = coords.reduce((sum, c) => sum + c.lon, 0) / coords.length;
+        const avgLat = coords.reduce((sum, c) => sum + c.lat, 0) / coords.length;
+        
+        // Try to get zoom from map parameter
+        let zoom = 15; // default
+        const mapMatch = fullUrl.match(REGEX_PATTERNS.mapboxConsoleMap);
+        if (mapMatch) {
+          zoom = parseFloat(mapMatch[3]);
+        }
+        
+        return {
+          lon: avgLon,
+          lat: avgLat,
+          zoom: zoom
+        };
+      }
+    }
+    
+    // Try Mapbox Console Directions Debug format: map=lon,lat,zoom (fallback)
+    match = fullUrl.match(REGEX_PATTERNS.mapboxConsoleMap);
+    if (match) {
+      return {
+        lon: parseFloat(match[1]),
+        lat: parseFloat(match[2]),
+        zoom: parseFloat(match[3])
+      };
+    }
+    
     // Try ll parameter (ll=lon,lat or ll=lon~lat)
-    let match = fullUrl.match(REGEX_PATTERNS.llParam);
+    match = fullUrl.match(REGEX_PATTERNS.llParam);
     if (match) {
       const result = {
         lon: parseFloat(match[1]),
@@ -219,6 +302,30 @@ class CoordinateParser {
     
     // Try cp parameter (cp=lat~lon)
     match = fullUrl.match(REGEX_PATTERNS.cpParam);
+    if (match) {
+      const result = {
+        lat: parseFloat(match[1]),
+        lon: parseFloat(match[2])
+      };
+      
+      const zoomMatch = fullUrl.match(REGEX_PATTERNS.zoomParam);
+      result.zoom = zoomMatch ? parseFloat(zoomMatch[1]) : 15;
+      
+      return result;
+    }
+    
+    // Try Satellites.pro format (#lat,lon,zoom)
+    match = fullUrl.match(REGEX_PATTERNS.satellitesProFormat);
+    if (match) {
+      return {
+        lat: parseFloat(match[1]),
+        lon: parseFloat(match[2]),
+        zoom: parseFloat(match[3])
+      };
+    }
+    
+    // Try Mapillary format (?lat=X&lng=Y&z=Z)
+    match = fullUrl.match(REGEX_PATTERNS.mapillaryFormat);
     if (match) {
       const result = {
         lat: parseFloat(match[1]),

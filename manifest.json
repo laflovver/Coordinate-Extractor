@@ -25,7 +25,7 @@
     "open-extension": {
       "suggested_key": {
         "default": "Ctrl+Shift+F",
-        "mac": "Ctrl+Shift+F"
+        "mac": "Command+Shift+F"
       },
       "description": "Open the extension popup"
     }

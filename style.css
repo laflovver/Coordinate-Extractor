@@ -10,45 +10,61 @@
 
 /* === CSS VARIABLES === */
 :root {
-  /* Colors */
+  /* Classic 3D Buildings Palette */
   --primary: #919AA8;
-  --primary-hover: #4F5D75;
-  --secondary: #f9f9f9;
-  --background: #ffffff;
+  --primary-hover: #919AA8;
+  --primary-light: #919AA8;
+  --accent: #919AA8;
+  --accent-hover: #919AA8;
+  
+  --background: rgba(228, 228, 228, 0.20);
+  --surface: #FFFFFF;
+  --surface-hover: rgba(145, 154, 168, 0.60);
+  
   --text: #4F5D75;
-  --text-light: #666666;
-  --text-muted: #999999;
-  --border: #dddddd;
+  --text-secondary: #4F5D75;
+  --text-muted: rgba(145, 154, 168, 0.60);
+  
+  --border: rgba(145, 154, 168, 0.60);
   --border-focus: #919AA8;
-  --success: #4CAF50;
-  --error: #FF5C61;
-  --white: #ffffff;
+  
+  --success: #919AA8;
+  --warning: #919AA8;
+  --error: #919AA8;
+  --info: #919AA8;
   
   /* Spacing */
-  --space-xs: 3px;
-  --space-sm: 6px;
-  --space-md: 10px;
-  --space-lg: 12px;
-  --space-xl: 16px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
   
   /* Sizes */
-  --border-radius: 4px;
-  --button-height: 32px;
-  --slot-height: 40px;
-  --input-height: 36px;
+  --border-radius: 5px;
+  --button-height: 34px;
+  --slot-height: 34px;
+  --input-height: 34px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   
   /* Transitions */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.2s ease;
-  --transition-slow: 0.3s ease;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* === LAYOUT === */
 html, body {
-  width: 480px;
-  height: fit-content;
-  min-height: 400px;
-  background: var(--background);
+  width: 680px;
+  height: 600px;
+  max-height: 600px;
+  background: transparent;
   color: var(--text);
   overflow: hidden;
   font-family: 'Roboto Mono', monospace;
@@ -58,22 +74,120 @@ html, body {
   padding: 0;
 }
 
-.grid-container {
-  width: 420px;
-  height: fit-content;
-  margin: var(--space-xl);
+/* === APP CONTAINER === */
+.app-container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  padding: var(--space-xl);
-  /* Prevent layout shifts */
-  position: relative;
-  overflow: visible;
+  height: 100%;
+  animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* === SECTIONS === */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* === HEADER === */
+.app-header {
+  background: rgba(228, 228, 228, 0.20);
+  backdrop-filter: blur(5px);
+  color: var(--text);
+  padding: var(--space-md) var(--space-lg);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 10;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.app-title h1 {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.hotkey-badge {
+  background: rgba(145, 154, 168, 0.60);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.25) inset;
+}
+
+/* === APP BODY === */
+.app-body {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: transparent;
+  overflow: hidden;
+  height: calc(100% - 50px);
+}
+
+/* === PANELS === */
+.coords-panel,
+.services-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  overflow-y: auto;
+  height: 100%;
+}
+
+.panel-section {
+  background: rgba(228, 228, 228, 0.20);
+  backdrop-filter: blur(5px);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 10px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-normal);
+}
+
+/* === SECTION HEADERS === */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* === OLD SECTION STYLES (deprecated but kept for compatibility) === */
 .section {
-  background: var(--secondary);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--border-radius);
   padding: var(--space-lg);
@@ -81,6 +195,12 @@ html, body {
   flex-direction: column;
   gap: var(--space-md);
   width: 100%;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-normal);
+}
+
+.section:hover {
+  box-shadow: var(--shadow);
 }
 
 /* === LOG SECTION === */
@@ -163,11 +283,11 @@ html, body {
 }
 
 #log-output {
-  height: 60px; /* Reduced to fit exactly 3 lines */
+  height: 50px;
   width: 100%;
   max-width: 100%;
-  padding: 8px;
-  background: var(--white);
+  padding: var(--space-sm);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-family: 'Roboto Mono', monospace;
@@ -380,70 +500,113 @@ html, body {
 
 /* === BUTTONS === */
 button {
-  width: 100%;
   height: var(--button-height);
-  background: var(--primary);
-  color: var(--white);
   border: none;
   border-radius: var(--border-radius);
   font-family: 'Roboto Mono', monospace;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
   transition: all var(--transition-normal);
-  margin-top: var(--space-xs);
   position: relative;
   overflow: hidden;
 }
 
-button:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 4px 12px rgba(145, 154, 168, 0.4);
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-button:active {
-  transform: translateY(0) scale(0.98);
-  animation: buttonPress 0.1s ease-out;
-}
-
-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
+/* Primary Button */
+.btn-primary {
   width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
+  background: rgba(145, 154, 168, 0.60);
+  color: white;
+  box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.25) inset;
+  border: none;
 }
 
-button:hover::before {
-  left: 100%;
+.btn-primary:hover {
+  background: #919AA8;
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px) scale(1.01);
 }
 
-button:active {
-  transform: translateY(0);
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background: rgba(145, 154, 168, 0.60);
+  color: white;
+  border: none;
+  box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.25) inset;
+}
+
+.btn-secondary:hover {
+  background: #919AA8;
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Accent Button */
+.btn-accent {
+  width: 100%;
+  background: rgba(145, 154, 168, 0.60);
+  color: white;
+  box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.25) inset;
+  border: none;
+}
+
+.btn-accent:hover {
+  background: #919AA8;
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px) scale(1.01);
+}
+
+.btn-accent:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Compact Button */
+.btn-compact {
+  width: auto;
+  padding: 0 var(--space-md);
+  height: 28px;
+  font-size: 10px;
 }
 
 .button-hotkey {
-  background: rgba(255, 255, 255, 0.2);
-  color: var(--white);
-  padding: 2px 6px;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  padding: 3px 7px;
+  border-radius: 4px;
   font-family: 'Roboto Mono', monospace;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  min-width: 18px;
-  height: 18px;
+  min-width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* === CURRENT COORDS === */
+.current-coords {
+  min-height: 60px;
+}
+
+/* === CLI GROUP === */
+.cli-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
 /* === SLOTS === */
@@ -457,17 +620,20 @@ button:active {
 .saved-slot-item {
   position: relative;
   height: var(--slot-height);
-  background: var(--white);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
   border-radius: var(--border-radius);
   display: flex;
   align-items: center;
   transition: all var(--transition-slow);
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
 }
 
 .saved-slot-item:hover {
   border-color: var(--border-focus);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
 }
 
 /* Hidden coordinates that appear on hover */
@@ -539,7 +705,8 @@ button:active {
 
 .saved-slot-item.selected-saved {
   border-color: var(--primary);
-  box-shadow: 0 2px 8px rgba(145, 154, 168, 0.2);
+  background: var(--primary-light);
+  box-shadow: var(--shadow-md), 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .slot-inner {
@@ -817,4 +984,126 @@ button:active {
 
 .slot-coords-hidden:active {
   animation: scrollBounce 0.3s ease-out;
+}
+
+/* === SERVICE GRID === */
+.service-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 350px;
+  overflow-y: auto;
+  padding-right: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.service-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.service-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.service-grid::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.service-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.service-btn {
+  padding: 3px 14px;
+  background: rgba(145, 154, 168, 0.60);
+  border: none;
+  border-radius: 5px;
+  cursor: grab;
+  text-align: left;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.25) inset;
+  min-height: 34px;
+  height: 34px;
+  position: relative;
+  user-select: none;
+}
+
+.service-btn[draggable="true"] {
+  cursor: grab;
+}
+
+.service-btn[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.service-btn:hover {
+  background: #919AA8;
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px) scale(1.01);
+}
+
+.service-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.service-btn.drop-target {
+  border-top: 2px solid #919AA8;
+  padding-top: 1px;
+}
+
+.service-delete-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.service-btn:hover .service-delete-btn {
+  opacity: 0.7;
+}
+
+.service-btn:hover .service-delete-btn:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.2);
+}
+
+.btn-add-custom {
+  padding: 3px 14px;
+  background: rgba(145, 154, 168, 0.60);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 34px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 8px 0 rgba(0, 0, 0, 0.25) inset;
+  line-height: 1;
+}
+
+.btn-add-custom:hover {
+  background: #919AA8;
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }

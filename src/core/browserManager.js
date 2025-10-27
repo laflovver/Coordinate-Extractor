@@ -101,6 +101,7 @@ class BrowserManager {
       this._createGoogleEarthRule(currentUrlStr, coords),
       this._createGoogleMapsRule(currentUrlStr, coords),
       this._createMapboxRule(currentUrl, mainPart, coords),
+      this._createMapboxConsoleRule(currentUrlStr, coords),
       this._createHashMapRule(currentUrlStr, coords),
       this._createHashCenterRule(currentUrlStr, coords),
       this._createHashSlashRule(currentUrl, mainPart, coords),
@@ -176,6 +177,21 @@ class BrowserManager {
         }
         
         return mainPart + hash;
+      }
+    };
+  }
+
+  static _createMapboxConsoleRule(currentUrlStr, coords) {
+    return {
+      match: (url) => url.hostname.includes("console.mapbox.com") && currentUrlStr.includes('directions-debug'),
+      transform: (url) => {
+        // Format: #route=11.59,48.17;11.73,48.17;11.69,48.13&map=11.66,48.16,13.16z
+        const newMapParam = `map=${coords.lon},${coords.lat},${coords.zoom}z`;
+        
+        // Replace the map parameter in the hash
+        const updatedUrl = currentUrlStr.replace(/map=[^&]+/, newMapParam);
+        
+        return updatedUrl;
       }
     };
   }
