@@ -1082,6 +1082,23 @@ button {
   transform: translateY(-50%) scale(1.2);
 }
 
+/* Buttons with shift modifier light up when shift is held */
+body.shift-held .service-btn.has-shift-modifier {
+  background: #FF9800;
+  box-shadow: 0 0 12px 0 rgba(255, 152, 0, 0.4);
+}
+
+/* Different colors for different services with shift modifier */
+body.shift-held .service-btn[data-service-name="HD Roads Prod"].has-shift-modifier {
+  background: #00BCD4;
+  box-shadow: 0 0 12px 0 rgba(0, 188, 212, 0.4);
+}
+
+body.shift-held .service-btn[data-service-name="Google Maps"].has-shift-modifier {
+  background: #4285F4;
+  box-shadow: 0 0 12px 0 rgba(66, 133, 244, 0.4);
+}
+
 .btn-add-custom {
   padding: 3px 14px;
   background: rgba(145, 154, 168, 0.60);

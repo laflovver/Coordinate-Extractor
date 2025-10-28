@@ -11,14 +11,16 @@ class ServiceModal {
     this.serviceGrid = null;
     this.customServices = [];
     this.hiddenServices = new Set();
+    this.isShiftHeld = false;
     
     // Standard services configuration
     this.standardServices = [
       { name: 'Mapbox Standard', urlTemplate: 'https://labs.mapbox.com/standard-style/#{{zoom}}/{{lat}}/{{lon}}', color: '#1A73E8', backgroundImage: 'https://labs.mapbox.com/favicon.ico' },
       { name: '3D Buildings Box', urlTemplate: 'https://hey.mapbox.com/3D-Buildings-Box/#{{zoom}}/{{lat}}/{{lon}}/{{bearing}}/{{pitch}}', color: '#FF9800', backgroundImage: 'file:///Users/yauhenitabolich/Downloads/mapbox-pin-star.png' },
+      { name: 'Labs HD Roads', urlTemplate: 'https://labs.mapbox.com/hd-roads/?lightPreset=satellite#{{zoom}}/{{lat}}/{{lon}}/{{bearing}}/{{pitch}}', color: '#9C27B0', backgroundImage: 'https://labs.mapbox.com/favicon.ico' },
+      { name: 'HD Roads Prod', urlTemplate: 'https://console.mapbox.com/studio/tilesets/mapbox.hd-road-v1-bounded/#{{zoom}}/{{lat}}/{{lon}}', color: '#00BCD4', backgroundImage: 'https://www.mapbox.com/favicon.ico', isTileset: true, altUrlTemplate: 'https://console.mapbox.com/studio/tilesets/mapbox.hd-road-v1-bounded-demo/#{{zoom}}/{{lat}}/{{lon}}/{{bearing}}', hasShiftModifier: true },
       { name: '3DLN Demo Style', urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox-3dln/mbx-3d-line-navigation-demo-style.html?title=view&access_token=pk.eyJ1IjoibWFwYm94LTNkbG4iLCJhIjoiY200djloOGQ2MDBmNDJpc2J5OHVtdDVkNCJ9.-Lbyn-czRBlAxwl-yNWdTg&zoomwheel=true&fresh=true#{{zoom}}/{{lat}}/{{lon}}', color: '#E91E63', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
-      { name: 'Google Maps', urlTemplate: 'https://www.google.com/maps/@{{lat}},{{lon}},{{zoom}}z', color: '#4285F4', backgroundImage: 'https://www.google.com/favicon.ico' },
-      { name: 'Google Earth', urlTemplate: 'https://earth.google.com/web/@{{lat}},{{lon}},{{zoom}}a,0y,0h,0t,0r', color: '#FF9800', backgroundImage: 'https://earth.google.com/favicon.ico' },
+      { name: 'Google Maps', urlTemplate: 'https://www.google.com/maps/@{{lat}},{{lon}},{{zoom}}z', color: '#4285F4', backgroundImage: 'https://www.google.com/favicon.ico', altUrlTemplate: 'https://earth.google.com/web/@{{lat}},{{lon}},{{zoom}}a,0y,0h,0t,0r', hasShiftModifier: true },
       { name: 'Direction Debug', urlTemplate: 'https://console.mapbox.com/directions-debug/#map={{lon}},{{lat}},{{zoom}}z', color: '#00BCD4', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
       { name: 'OpenStreetMap', urlTemplate: 'https://www.openstreetmap.org/#map={{zoom}}/{{lat}}/{{lon}}', color: '#7EBC6F', backgroundImage: 'https://www.openstreetmap.org/favicon.ico' },
       { name: 'Bing Maps', urlTemplate: 'https://www.bing.com/maps?cp={{lat}}~{{lon}}&lvl={{zoom}}', color: '#008373', backgroundImage: 'https://www.bing.com/favicon.ico' },
@@ -42,6 +44,72 @@ class ServiceModal {
     await this.renderServices();
     this.setupEventListeners();
     this.setupKeyboardShortcuts();
+    this.setupShiftIndicator();
+  }
+  
+  /**
+   * Setup Shift key visual indicator for 3D Buildings Box
+   */
+  setupShiftIndicator() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Shift' || e.keyCode === 16 || e.shiftKey) {
+        console.log('Shift key pressed, key:', e.key, 'keyCode:', e.keyCode, 'shiftKey:', e.shiftKey);
+        this.isShiftHeld = true;
+        // Add class to body when shift is held for CSS styling
+        document.body.classList.add('shift-held');
+        
+        // Update button names for buttons with shift modifier
+        this.updateButtonNames(true);
+      }
+    });
+    
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Shift' || e.keyCode === 16) {
+        console.log('Shift key released');
+        this.isShiftHeld = false;
+        // Remove class from body
+        document.body.classList.remove('shift-held');
+        
+        // Restore original button names
+        this.updateButtonNames(false);
+      }
+    });
+  }
+  
+  /**
+   * Update button names when shift is held
+   */
+  updateButtonNames(shiftHeld) {
+    const buttons = this.serviceGrid?.querySelectorAll('.service-btn');
+    if (!buttons) return;
+    
+    buttons.forEach(btn => {
+      const serviceName = btn.dataset.serviceName;
+      
+      // Update 3D Buildings Box name
+      if (serviceName === '3D Buildings Box') {
+        const nameSpan = btn.querySelector('span:not(.service-hotkey-badge):not(.service-delete-btn)');
+        if (nameSpan) {
+          nameSpan.textContent = shiftHeld ? '3D Buildings Box (3DLN)' : '3D Buildings Box';
+        }
+      }
+      
+      // Update HD Roads Prod name
+      if (serviceName === 'HD Roads Prod') {
+        const nameSpan = btn.querySelector('span:not(.service-hotkey-badge):not(.service-delete-btn)');
+        if (nameSpan) {
+          nameSpan.textContent = shiftHeld ? 'HD Roads Demo' : 'HD Roads Prod';
+        }
+      }
+      
+      // Update Google Maps name
+      if (serviceName === 'Google Maps') {
+        const nameSpan = btn.querySelector('span:not(.service-hotkey-badge):not(.service-delete-btn)');
+        if (nameSpan) {
+          nameSpan.textContent = shiftHeld ? 'Google Earth' : 'Google Maps';
+        }
+      }
+    });
   }
   
   /**
@@ -324,8 +392,25 @@ class ServiceModal {
     serviceName.style.flex = '1';
     leftContent.appendChild(serviceName);
     
+    // Add visual tileset marker if applicable
+    if (service.isTileset) {
+      const tilesetMarker = document.createElement('span');
+      tilesetMarker.textContent = '▫';
+      tilesetMarker.style.color = '#919AA8';
+      tilesetMarker.style.fontSize = '14px';
+      tilesetMarker.style.marginLeft = '4px';
+      tilesetMarker.style.opacity = '0.6';
+      tilesetMarker.title = 'Tileset';
+      leftContent.appendChild(tilesetMarker);
+    }
+    
     btn.appendChild(leftContent);
     btn.dataset.serviceName = service.name;
+    
+    // Mark buttons with additional functionality (Shift modifier)
+    if (service.name === '3D Buildings Box' || service.hasShiftModifier) {
+      btn.classList.add('has-shift-modifier');
+    }
     
     // Set button to have relative positioning for absolute children
     btn.style.position = 'relative';
@@ -419,8 +504,8 @@ class ServiceModal {
       btn.style.borderRight = '2px solid #FF9800';
     }
     
-    btn.addEventListener('click', () => {
-      this.openService(service);
+    btn.addEventListener('click', (e) => {
+      this.openService(service, e.shiftKey);
     });
     
     // Add delete button for all services
@@ -439,13 +524,44 @@ class ServiceModal {
   /**
    * Open service in new tab
    */
-  openService(service) {
+  openService(service, shiftKey = false) {
     if (!this.currentCoords) {
       UIComponents.Logger.log("No coordinates available", "error");
       return;
     }
     
-    const url = this.buildServiceUrl(service.urlTemplate, this.currentCoords);
+    let url = this.buildServiceUrl(service.urlTemplate, this.currentCoords);
+    
+    // Special handling for 3D Buildings Box with Shift key
+    if (service.name === '3D Buildings Box' && shiftKey) {
+      console.log('Adding basemap parameter for 3D Buildings Box');
+      // Add basemap parameter for 3dln-demo preset
+      const urlObj = new URL(url);
+      urlObj.searchParams.set('basemap', '3dln-demo');
+      url = urlObj.toString();
+      console.log('Final URL:', url);
+    }
+    
+    // Special handling for HD Roads Prod with Shift key - use Demo URL
+    if (service.name === 'HD Roads Prod' && shiftKey && service.altUrlTemplate) {
+      console.log('Opening HD Roads Demo instead of Prod');
+      url = this.buildServiceUrl(service.altUrlTemplate, this.currentCoords);
+      console.log('Demo URL:', url);
+    }
+    
+    // Special handling for Google Maps with Shift key - open Google Earth
+    if (service.name === 'Google Maps' && shiftKey && service.altUrlTemplate) {
+      console.log('Opening Google Earth instead of Google Maps');
+      url = this.buildServiceUrl(service.altUrlTemplate, this.currentCoords);
+      console.log('Google Earth URL:', url);
+    }
+    
+    // Handle custom services with alternative URL
+    if (shiftKey && service.altUrlTemplate && this.customServices.includes(service)) {
+      console.log('Opening alternative URL for custom service');
+      url = this.buildServiceUrl(service.altUrlTemplate, this.currentCoords);
+      console.log('Alternative URL:', url);
+    }
     
     if (url) {
       window.open(url, '_blank');
@@ -571,29 +687,94 @@ class ServiceModal {
    * Prompt user to add custom service
    */
   promptAddCustomService() {
-    const name = prompt('Enter service name:');
-    if (!name) return;
+    // Create modal
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;';
     
-    const url = prompt('Enter URL (with coordinates as example):');
-    if (!url) return;
+    const dialog = document.createElement('div');
+    dialog.style.cssText = 'background: white; padding: 24px; border-radius: 8px; min-width: 400px; max-width: 500px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
     
-    // Try to detect and create template automatically
-    const urlTemplate = this.detectUrlTemplate(url);
+    dialog.innerHTML = `
+      <h2 style="margin: 0 0 20px 0; font-size: 18px; color: #4F5D75;">Add Custom Service</h2>
+      <form id="custom-service-form">
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #4F5D75; font-weight: 600;">Service Name</label>
+          <input type="text" id="service-name" required style="width: 100%; padding: 8px 12px; border: 1px solid #919AA8; border-radius: 5px; font-size: 14px; box-sizing: border-box;" placeholder="e.g., My Custom Map">
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #4F5D75; font-weight: 600;">URL Template</label>
+          <textarea id="service-url" required style="width: 100%; padding: 8px 12px; border: 1px solid #919AA8; border-radius: 5px; font-size: 14px; box-sizing: border-box; min-height: 60px; font-family: monospace;" placeholder="https://example.com/map#{{zoom}}/{{lat}}/{{lon}}"></textarea>
+          <small style="color: #919AA8; font-size: 12px;">Use {{lat}}, {{lon}}, {{zoom}} as placeholders</small>
+        </div>
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #4F5D75; font-weight: 600;">Alternative URL (Optional)</label>
+          <textarea id="service-alt-url" style="width: 100%; padding: 8px 12px; border: 1px solid #919AA8; border-radius: 5px; font-size: 14px; box-sizing: border-box; min-height: 60px; font-family: monospace;" placeholder="Alternative URL for Shift+click"></textarea>
+          <small style="color: #919AA8; font-size: 12px;">Opens when Shift is held while clicking</small>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button type="button" id="cancel-btn" style="padding: 8px 16px; background: #f5f5f5; border: 1px solid #919AA8; border-radius: 5px; cursor: pointer; font-size: 14px;">Cancel</button>
+          <button type="submit" id="add-btn" style="padding: 8px 16px; background: #4285F4; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600;">Add Service</button>
+        </div>
+      </form>
+    `;
     
-    if (!urlTemplate) {
-      alert('Could not detect URL pattern. Please use a URL with coordinates.');
-      return;
-    }
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
     
-    const service = {
-      name: name,
-      urlTemplate: urlTemplate
-    };
+    // Handle form submission
+    const form = dialog.querySelector('#custom-service-form');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('service-name').value.trim();
+      const url = document.getElementById('service-url').value.trim();
+      const altUrl = document.getElementById('service-alt-url').value.trim();
+      
+      if (!name || !url) {
+        alert('Please fill in all required fields.');
+        return;
+      }
+      
+      // Detect URL template
+      const urlTemplate = this.detectUrlTemplate(url);
+      
+      if (!urlTemplate) {
+        alert('Could not detect URL pattern. Please use a URL with {{lat}}, {{lon}}, {{zoom}} placeholders.');
+        return;
+      }
+      
+      let altUrlTemplate = null;
+      if (altUrl) {
+        altUrlTemplate = this.detectUrlTemplate(altUrl);
+      }
+      
+      const service = {
+        name: name,
+        urlTemplate: urlTemplate,
+        altUrlTemplate: altUrlTemplate,
+        hasShiftModifier: !!altUrl
+      };
+      
+      this.customServices.push(service);
+      this.saveCustomServices();
+      this.renderServices();
+      UIComponents.Logger.log(`Added custom service: ${name}`, "success");
+      
+      document.body.removeChild(modal);
+    });
     
-    this.customServices.push(service);
-    this.saveCustomServices();
-    this.renderServices();
-    UIComponents.Logger.log(`Added custom service: ${name}`, "success");
+    // Handle cancel button
+    const cancelBtn = dialog.querySelector('#cancel-btn');
+    cancelBtn.addEventListener('click', () => {
+      document.body.removeChild(modal);
+    });
+    
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
   }
   
   /**
@@ -699,19 +880,37 @@ class ServiceModal {
       const key = e.key;
       
       // Check if pressing 1-9
-      if (key >= '1' && key <= '9') {
-        const index = parseInt(key) - 1;
-        const services = this.serviceGrid.querySelectorAll('.service-btn');
+      // Note: Shift+numbers produce special characters on some keyboards
+      // Shift+1='!', Shift+2='@', Shift+3='#', Shift+4='$', Shift+5='%', etc.
+      let keyNumber = key;
+      const shiftNumberMap = {
+        '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
+        '^': '6', '&': '7', '*': '8', '(': '9'
+      };
+      
+      if (shiftNumberMap[key]) {
+        keyNumber = shiftNumberMap[key];
+        console.log(`Shift+${keyNumber} detected, converted ${key} to ${keyNumber}`);
+      }
+      
+      if (keyNumber >= '1' && keyNumber <= '9') {
+        console.log('Processing hotkey:', keyNumber);
+        const index = parseInt(keyNumber) - 1;
         
-        if (services[index]) {
+        // Get services in the correct order (visible order)
+        const visibleOrder = this.getVisibleServicesOrder();
+        const serviceName = visibleOrder[index];
+        
+        if (serviceName) {
           e.preventDefault();
-          const serviceName = services[index].dataset.serviceName;
           const service = this.standardServices.find(s => s.name === serviceName) || 
                          this.customServices.find(s => s.name === serviceName);
           
-          if (service) {
+          if (service && !this.hiddenServices.has(serviceName)) {
             this.currentCoords = await this.getCurrentCoordinates();
-            this.openService(service);
+            const shiftState = this.isShiftHeld || e.shiftKey;
+            console.log('Opening service:', service.name, 'isShiftHeld:', this.isShiftHeld, 'e.shiftKey:', e.shiftKey, 'final shiftState:', shiftState);
+            this.openService(service, shiftState);
           }
         }
       }
