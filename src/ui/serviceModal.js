@@ -310,17 +310,20 @@ class ServiceModal {
     try {
       const saved = localStorage.getItem('coordinate_extractor_services_order');
       if (saved) {
-        return JSON.parse(saved);
+        const order = JSON.parse(saved);
+        // Filter out hidden services
+        return order.filter(name => !this.hiddenServices.has(name));
       }
     } catch (error) {
       console.error('Error loading services order:', error);
     }
     
-    // Default order: all standard services + custom
-    return [
+    // Default order: all standard services + custom (excluding hidden)
+    const allServices = [
       ...this.standardServices.map(s => s.name),
       ...this.customServices.map(s => s.name)
     ];
+    return allServices.filter(name => !this.hiddenServices.has(name));
   }
   
   /**
@@ -897,16 +900,17 @@ class ServiceModal {
         console.log('Processing hotkey:', keyNumber);
         const index = parseInt(keyNumber) - 1;
         
-        // Get services in the correct order (visible order)
-        const visibleOrder = this.getVisibleServicesOrder();
-        const serviceName = visibleOrder[index];
+        // Get services in the exact order they appear in the UI
+        const buttons = this.serviceGrid.querySelectorAll('.service-btn');
+        const button = buttons[index];
         
-        if (serviceName) {
+        if (button) {
           e.preventDefault();
+          const serviceName = button.dataset.serviceName;
           const service = this.standardServices.find(s => s.name === serviceName) || 
                          this.customServices.find(s => s.name === serviceName);
           
-          if (service && !this.hiddenServices.has(serviceName)) {
+          if (service) {
             this.currentCoords = await this.getCurrentCoordinates();
             const shiftState = this.isShiftHeld || e.shiftKey;
             console.log('Opening service:', service.name, 'isShiftHeld:', this.isShiftHeld, 'e.shiftKey:', e.shiftKey, 'final shiftState:', shiftState);
