@@ -8,6 +8,28 @@
   font-family: 'Roboto Mono', monospace;
 }
 
+/* === POPUP WINDOW STYLING === */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-width: 680px;
+  min-height: 600px;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(228, 228, 228, 0.25) 0%, rgba(228, 228, 228, 0.15) 100%);
+  color: var(--text);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+
 /* === CSS VARIABLES === */
 :root {
   /* Classic 3D Buildings Palette */
@@ -60,19 +82,7 @@
 }
 
 /* === LAYOUT === */
-html, body {
-  width: 680px;
-  height: 600px;
-  max-height: 600px;
-  background: transparent;
-  color: var(--text);
-  overflow: hidden;
-  font-family: 'Roboto Mono', monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  margin: 0;
-  padding: 0;
-}
+/* Remove duplicate - using POPUP WINDOW STYLING above */
 
 /* === APP CONTAINER === */
 .app-container {
@@ -284,6 +294,7 @@ html, body {
 
 #log-output {
   height: 50px;
+  max-height: 50px;
   width: 100%;
   max-width: 100%;
   padding: var(--space-sm);
@@ -303,21 +314,25 @@ html, body {
 #log-output .log-message {
   display: block;
   width: 100%;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   padding: 2px 0;
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.3;
   color: var(--text);
-  opacity: 0.8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: 0.85;
+  white-space: pre-wrap;
+  word-wrap: break-word;
   box-sizing: border-box;
 }
 
-/* Show only last 3 messages in collapsed state */
+/* Show only last 3 messages in collapsed state - expand on hover */
 #log-output .log-message:nth-last-child(n+4) {
   display: none;
+}
+
+/* Show all messages when hovering over log container */
+#log-output:hover .log-message {
+  display: block;
 }
 
 #log-output .log-message:hover {
@@ -677,11 +692,17 @@ button {
 .saved-slot-item:hover .slot-coords,
 .saved-slot-item:hover .slot-indicator,
 .saved-slot-item:hover .slot-label,
-.saved-slot-item:hover .hotkey-icon,
-.saved-slot-item:hover .edit-btn {
+.saved-slot-item:hover .hotkey-icon {
   opacity: 0;
   transform: translateY(-5px);
   transition: all 0.1s ease-out;
+}
+
+/* Keep edit button visible on hover so it can be clicked */
+.saved-slot-item:hover .edit-btn {
+  opacity: 1;
+  z-index: 15;
+  pointer-events: auto;
 }
 
 /* Show hidden coordinates on hover for slots with labels */
@@ -789,6 +810,8 @@ button {
   text-transform: lowercase;
   backdrop-filter: blur(4px);
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+  z-index: 15; /* Ensure edit button is above coordinates on hover */
+  pointer-events: auto; /* Ensure button is clickable */
 }
 
 .edit-btn::before {

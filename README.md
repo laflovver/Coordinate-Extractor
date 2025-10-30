@@ -6,13 +6,14 @@ A powerful Chrome extension that automatically extracts geographic coordinates (
 
 - **⚡ Fast Coordinate Extraction**: Automatically parses coordinates from URLs
 - **🌍 Universal Support**: Works with various URL formats and mapping services
-- **📋 4 Storage Slots**: Save and manage up to 4 coordinate sets
+- **📋 4 Storage Slots**: Save and manage up to 4 coordinate sets with instant saving
 - **⌨️ Keyboard Shortcuts**: Quick actions with hotkeys
-- **🌐 Automatic Location Names**: Uses OpenStreetMap geocoding for slots 1-3
+- **🌐 Automatic Location Names**: Background geocoding for slots 1-3 (coordinates save immediately)
 - **🎨 Color-Coded Labels**: Customize slot names with colors
 - **🗺️ Service Navigation**: Quick access to multiple map services with drag-and-drop reordering
 - **🎯 Hotkeys for Services**: Direct navigation to services with keys 1-9
 - **🎨 Service Visual Identity**: Colored borders and background images based on service branding
+- **✨ Visual Feedback**: Icon rotation animation shows when extension is loading
 
 ---
 
@@ -46,7 +47,7 @@ When you open the popup, the extension automatically extracts coordinates from t
 ### Coordinate Slots
 | Shortcut | Action |
 |----------|--------|
-| **Ctrl+Shift+F** | Open extension popup |
+| **Command+Shift+E** (Mac) / **Ctrl+Shift+E** (Windows/Linux) | Open extension popup |
 | **Option+1, 2, 3, 4** | Select slot 0, 1, 2, or 3 |
 | **C** | Copy coordinates to clipboard |
 | **V** | Paste coordinates from clipboard |
@@ -74,8 +75,9 @@ When you open the popup, the extension automatically extracts coordinates from t
 1. Extract coordinates (or paste from clipboard)
 2. Select slot 1, 2, or 3
 3. Press **V** to paste
-4. Location name appears automatically
-5. Click the ✏️ icon to customize the name
+4. Coordinates are saved immediately
+5. Location name appears automatically in the background (via geocoding)
+6. Click the ✏️ icon to customize the name
 
 ### Example 3: Navigate
 1. Select a slot with saved coordinates
@@ -103,10 +105,13 @@ With rotation and tilt (when needed):
 ## 🌍 Geocoding
 
 Slots 1-3 automatically fetch location names using OpenStreetMap's Nominatim API:
-- Shows "Loading location..." while fetching
+- **Coordinates save immediately** - no waiting for geocoding
+- Location names are fetched in the background after coordinates are saved
+- Shows "Loading location..." while fetching the name
 - Displays short, readable location names
 - Names are editable and persist across sessions
 - Color-coded for easy identification
+- Coordinates are preserved even if geocoding fails or is slow
 
 ---
 
@@ -115,10 +120,12 @@ Slots 1-3 automatically fetch location names using OpenStreetMap's Nominatim API
 The extension supports navigation to multiple map services:
 - **Mapbox Standard** - Standard Mapbox style
 - **3D Buildings Box** - 3D building visualizations
+- **Labs HD Roads** - High-definition road mapping
+- **HD Roads Prod** - Production HD roads tileset
 - **3DLN Demo Style** - 3D line navigation demo
 - **Google Maps** - Street and satellite imagery
 - **Google Earth** - 3D Earth view
-- **Direction Debug** - Mapbox directions debugging
+- **3D Model Slots** - 3D model visualization
 - **OpenStreetMap** - Open-source map data
 - **Bing Maps** - Microsoft mapping service
 - **Yandex Maps** - Russian mapping service
@@ -134,7 +141,8 @@ You can add custom services by clicking the "+ Add Custom Service" button and pr
 | Coordinates not found | Ensure the URL contains valid coordinate data |
 | Clipboard error | Allow clipboard access in Chrome settings |
 | Wrong coordinates | Some services use different coordinate orders - try a different slot |
-| Location not loading | Wait a moment or edit the name manually |
+| Location name not loading | Coordinates are saved; name will appear when geocoding completes. You can edit the name manually if needed |
+| Extension icon spinning | The icon rotates while the extension popup is loading |
 
 ---
 
@@ -167,7 +175,16 @@ src/
 
 ## 📝 Changelog
 
-### v3.1.0
+### v3.1.0 (Latest)
+- **Icon rotation animation**: Extension icon rotates while popup is loading for visual feedback
+- **Improved coordinate saving**: Coordinates in slots 1-3 save immediately; location names are fetched in the background
+- **Better reliability**: Coordinates are preserved even if geocoding fails or takes too long
+- Changed hotkey from Command+Shift+F to **Command+Shift+E** (Mac) / Ctrl+Shift+E (Windows/Linux)
+- Added 3D Model Slots service
+- Reordered quick access services (3D Model Slots at 8th, OpenStreetMap at 9th, Bing Maps at 10th)
+- Log panel now displays all console logs for better debugging
+- Fixed hotkey conflicts between slot selection and service navigation
+- Improved popup window appearance and positioning
 - Added service navigation modal with drag-and-drop reordering
 - Implemented hotkeys 1-9 for direct service navigation
 - Added color-coded service buttons based on service branding

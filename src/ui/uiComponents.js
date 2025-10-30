@@ -61,15 +61,57 @@ class UIComponents {
      */
     static init() {
       this._logContainer = document.getElementById("log-output");
+      this._interceptConsole();
+    }
+    
+    /**
+     * Intercept console methods and redirect to UI
+     */
+    static _interceptConsole() {
+      // Store original console methods
+      const originalLog = console.log;
+      const originalError = console.error;
+      const originalWarn = console.warn;
+      
+      // Override console.log
+      console.log = (...args) => {
+        originalLog.apply(console, args);
+        const message = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        this.log(`[LOG] ${message}`, "info");
+      };
+      
+      // Override console.error
+      console.error = (...args) => {
+        originalError.apply(console, args);
+        const message = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        this.log(`[ERROR] ${message}`, "error");
+      };
+      
+      // Override console.warn
+      console.warn = (...args) => {
+        originalWarn.apply(console, args);
+        const message = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+        ).join(' ');
+        this.log(`[WARN] ${message}`, "warning");
+      };
     }
 
     /**
      * Add message to log
      * @param {string} msg - Message
-     * @param {string} type - Message type: "info", "error", "success"  
+     * @param {string} type - Message type: "info", "error", "success", "warning"  
      */
     static log(msg, type = "info") {
-      if (!this._logContainer) return;
+      if (!this._logContainer) {
+        // Try to initialize again
+        this._logContainer = document.getElementById("log-output");
+        if (!this._logContainer) return;
+      }
       
       // Check for duplicate messages in the last 3 entries
       const recentMessages = this._lastMessages.slice(-3);
@@ -82,17 +124,31 @@ class UIComponents {
       }
       
       // Store message for duplicate checking
-      this._lastMessages.push({ msg, type });
-      if (this._lastMessages.length > 10) {
-        this._lastMessages = this._lastMessages.slice(-10);
+      const timestamp = new Date().toLocaleTimeString();
+      this._lastMessages.push({ msg, type, timestamp });
+      if (this._lastMessages.length > 50) {
+        this._lastMessages = this._lastMessages.slice(-50);
       }
       
       const span = document.createElement("span");
       span.className = `log-message log-${type}`;
-      span.textContent = msg.replace(/\n/g, " ") + " ";
+      span.textContent = `[${timestamp}] ${msg.replace(/\n/g, " ")}`;
       
       this._logContainer.appendChild(span);
-      this._logContainer.scrollTop = this._logContainer.scrollHeight;
+      
+      // Remove old messages if too many (keep in DOM, CSS will hide them - only keep last 3 visible)
+      const messages = this._logContainer.querySelectorAll('.log-message');
+      // Keep up to 50 messages in DOM, but CSS shows only last 3
+      if (messages.length > 50) {
+        for (let i = 0; i < messages.length - 50; i++) {
+          messages[i].remove();
+        }
+      }
+      
+      // Always scroll to bottom
+      setTimeout(() => {
+        this._logContainer.scrollTop = this._logContainer.scrollHeight;
+      }, 10);
     }
   };
 

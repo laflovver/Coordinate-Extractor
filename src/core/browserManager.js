@@ -205,8 +205,18 @@ class BrowserManager {
 
   static _createHashCenterRule(currentUrlStr, coords) {
     return {
-      match: (url) => url.hash.includes("center="),
-      transform: (url) => currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.lon}/${coords.lat}/${coords.zoom}`)
+      match: (url) => url.hash.includes("center=") || url.search.includes("center="),
+      transform: (url) => {
+        // Check if it's Mapbox Sites format (lon/lat/zoom)
+        const hostname = url.hostname;
+        if (hostname.includes("sites.mapbox.com")) {
+          // Mapbox Sites uses lon/lat/zoom format
+          return currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.lon}%2F${coords.lat}%2F${coords.zoom}`);
+        } else {
+          // Default format: zoom/lon/lat (as in bookmarklet)
+          return currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.zoom}/${coords.lon}/${coords.lat}`);
+        }
+      }
     };
   }
 

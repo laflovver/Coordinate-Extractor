@@ -22,6 +22,7 @@ class ServiceModal {
       { name: '3DLN Demo Style', urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox-3dln/mbx-3d-line-navigation-demo-style.html?title=view&access_token=pk.eyJ1IjoibWFwYm94LTNkbG4iLCJhIjoiY200djloOGQ2MDBmNDJpc2J5OHVtdDVkNCJ9.-Lbyn-czRBlAxwl-yNWdTg&zoomwheel=true&fresh=true#{{zoom}}/{{lat}}/{{lon}}', color: '#E91E63', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
       { name: 'Google Maps', urlTemplate: 'https://www.google.com/maps/@{{lat}},{{lon}},{{zoom}}z', color: '#4285F4', backgroundImage: 'https://www.google.com/favicon.ico', altUrlTemplate: 'https://earth.google.com/web/@{{lat}},{{lon}},{{zoom}}a,0y,0h,0t,0r', hasShiftModifier: true },
       { name: 'Direction Debug', urlTemplate: 'https://console.mapbox.com/directions-debug/#map={{lon}},{{lat}},{{zoom}}z', color: '#00BCD4', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
+      { name: '3D Model Slots', urlTemplate: 'https://sites.mapbox.com/mbx-3dbuilding-tools-staging/#/model-slots/2022-10-10/review/?center={{zoom}}%2F{{lon}}%2F{{lat}}&jira_summary=&jira_status=&jira_issue_id=&jira_labels=&jira_fix_versions=&env=&city=&iso_3166_1_alpha3=&lights=&colorization=', color: '#9C27B0', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
       { name: 'OpenStreetMap', urlTemplate: 'https://www.openstreetmap.org/#map={{zoom}}/{{lat}}/{{lon}}', color: '#7EBC6F', backgroundImage: 'https://www.openstreetmap.org/favicon.ico' },
       { name: 'Bing Maps', urlTemplate: 'https://www.bing.com/maps?cp={{lat}}~{{lon}}&lvl={{zoom}}', color: '#008373', backgroundImage: 'https://www.bing.com/favicon.ico' },
       { name: 'Yandex Maps', urlTemplate: 'https://yandex.by/maps/?ll={{lon}},{{lat}}&z={{zoom}}', color: '#FF0000', backgroundImage: 'https://yandex.by/favicon.ico' },
@@ -41,7 +42,12 @@ class ServiceModal {
     
     this.loadCustomServices();
     this.loadHiddenServices();
-    await this.renderServices();
+    
+    // Render services without blocking - coordinates will load in background
+    this.renderServices().catch(err => {
+      console.error("Error rendering services:", err);
+    });
+    
     this.setupEventListeners();
     this.setupKeyboardShortcuts();
     this.setupShiftIndicator();
@@ -156,9 +162,7 @@ class ServiceModal {
   async renderServices() {
     if (!this.serviceGrid) return;
     
-    // Get current coordinates
-    this.currentCoords = await this.getCurrentCoordinates();
-    
+    // Render services immediately, load coordinates in background (non-blocking)
     this.serviceGrid.innerHTML = '';
     
     // Get visible services order from localStorage
@@ -178,6 +182,13 @@ class ServiceModal {
     
     // Setup drag and drop
     this.setupDragAndDrop();
+    
+    // Load coordinates in background (non-blocking)
+    this.getCurrentCoordinates().then(coords => {
+      this.currentCoords = coords;
+    }).catch(err => {
+      console.error("Error getting current coordinates:", err);
+    });
   }
   
   /**
@@ -567,7 +578,8 @@ class ServiceModal {
     }
     
     if (url) {
-      window.open(url, '_blank');
+      // Use Chrome Tabs API instead of window.open for better control
+      chrome.tabs.create({ url: url, active: true });
       UIComponents.Logger.log(`Opening ${service.name}`, "success");
       this.close();
     } else {
@@ -877,6 +889,11 @@ class ServiceModal {
     document.addEventListener('keydown', async (e) => {
       // Only work when popup is open and not in input fields
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      // Don't handle service shortcuts if Alt/Option is pressed - let app.js handle slot selection
+      if (e.altKey || e.metaKey) {
         return;
       }
       

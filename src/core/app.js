@@ -26,50 +26,58 @@ class CoordinateExtractorApp {
    */
   async init() {
     try {
-      // Check if required modules are available
-      console.log('App init - checking modules:');
-      console.log('CoordinateParser:', typeof CoordinateParser);
-      console.log('StorageManager:', typeof StorageManager);
-      console.log('BrowserManager:', typeof BrowserManager);
-      console.log('UIComponents:', typeof UIComponents);
+      // Quick initialization - show UI first, load data async
       
-      if (typeof CoordinateParser === 'undefined') {
-        throw new Error("CoordinateParser is not defined");
-      }
-      if (typeof StorageManager === 'undefined') {
-        throw new Error("StorageManager is not defined");
-      }
-      if (typeof BrowserManager === 'undefined') {
-        throw new Error("BrowserManager is not defined");
-      }
+      // Initialize UI components immediately
       if (typeof UIComponents === 'undefined') {
         throw new Error("UIComponents is not defined");
       }
-      
-      // Initialize UI components
       UIComponents.init();
       
-      // Initialize service modal
-      if (typeof ServiceModal !== 'undefined') {
-        this.serviceModal = new ServiceModal();
-        await this.serviceModal.init();
-        window.serviceModalInstance = this.serviceModal;
-      }
-      
-      // Load and display saved coordinates
-      await this.loadStoredCoordinates();
-      
-      // Auto-extract coordinates from active tab
-      await this.extractCurrentTabCoordinates();
-      
-      // Setup event handlers
+      // Setup event handlers immediately so UI is responsive
       this.setupEventListeners();
       
-      // Store global instance
+      // Store global instance early
       window.appInstance = this;
+      
+      // Notify background that UI is ready (this will stop loading animation)
+      // We send this early so user sees popup is responsive
+      if (chrome.runtime && chrome.runtime.sendMessage) {
+        // Use setTimeout to ensure message is sent after popup is fully visible
+        setTimeout(() => {
+          chrome.runtime.sendMessage('popup-ready').catch(() => {
+            // Ignore errors if background is not available
+          });
+        }, 100);
+      }
+      
+      // Load saved coordinates immediately (fast, from storage)
+      this.loadStoredCoordinates().catch(err => {
+        console.error("Error loading stored coordinates:", err);
+      });
+      
+      // Initialize service modal asynchronously (may take time)
+      if (typeof ServiceModal !== 'undefined') {
+        this.serviceModal = new ServiceModal();
+        // Don't await - let it load in background
+        this.serviceModal.init().then(() => {
+          window.serviceModalInstance = this.serviceModal;
+        }).catch(err => {
+          console.error("Error initializing service modal:", err);
+        });
+      }
+      
+      // Extract coordinates from active tab asynchronously (may take time)
+      this.extractCurrentTabCoordinates().catch(err => {
+        console.error("Error extracting coordinates:", err);
+      });
+      
     } catch (error) {
-      // UIComponents.Logger.log("Failed to initialize app: " + error.message, "error");
       console.error("App initialization error:", error);
+      // Still notify that initialization attempt completed
+      if (chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage('popup-ready').catch(() => {});
+      }
     }
   }
   
@@ -201,7 +209,7 @@ class CoordinateExtractorApp {
 
 
   /**
-   * Add location name to coordinates
+   * Add location name to coordinates (runs in background)
    * @param {Object} coords - Coordinates
    * @param {number} slotIndex - Slot index
    */
@@ -211,10 +219,19 @@ class CoordinateExtractorApp {
         return;
       }
       
-      // Check if name was changed by user
+      // Check if name was changed by user (re-check since this runs asynchronously)
       const currentSlot = await StorageManager.getSlot(slotIndex);
       if (currentSlot && currentSlot.userNamed) {
         console.log('Slot has user-defined name, skipping geocoding');
+        return;
+      }
+      
+      // Verify coordinates haven't changed (user might have pasted different coordinates)
+      if (currentSlot && (
+        currentSlot.lat !== coords.lat || 
+        currentSlot.lon !== coords.lon
+      )) {
+        console.log('Coordinates changed, skipping geocoding for old coordinates');
         return;
       }
       
@@ -227,25 +244,68 @@ class CoordinateExtractorApp {
       // Get location name
       const locationName = await Geocoder.reverseGeocode(coords.lat, coords.lon);
       
+      // Re-check slot state after geocoding (it might have changed)
+      const slotAfterGeocoding = await StorageManager.getSlot(slotIndex);
+      if (!slotAfterGeocoding) {
+        // Slot was cleared, don't update
+        return;
+      }
+      
+      if (slotAfterGeocoding.userNamed) {
+        // User named it while geocoding was in progress
+        console.log('Slot was manually named during geocoding, skipping update');
+        return;
+      }
+      
+      // Verify coordinates still match
+      if (slotAfterGeocoding.lat !== coords.lat || slotAfterGeocoding.lon !== coords.lon) {
+        console.log('Coordinates changed during geocoding, skipping update');
+        return;
+      }
+      
       if (locationName) {
         const shortName = Geocoder.createShortName(locationName);
         
-        // Update coordinates with name (reset userNamed when coordinates change)
+        // Update only the name fields, preserve other properties
         const updatedCoords = {
-          ...coords,
+          ...slotAfterGeocoding, // Preserve existing coordinates and other properties
           name: shortName,
           fullName: locationName,
-          labelColor: "",
           userNamed: false // Auto-generated name
         };
         
         await StorageManager.setSlot(slotIndex, updatedCoords);
         
         // Update UI after adding name
-        this.refreshUI();
+        const element = document.getElementById(`saved-coords-${slotIndex}`);
+        if (element) {
+          const updatedSlot = await StorageManager.getSlot(slotIndex);
+          const displayText = StorageManager.getSlotDisplayText(updatedSlot, slotIndex);
+          UIComponents.SlotRenderer.renderContent(element, displayText, updatedSlot?.labelColor);
+        }
+      } else {
+        // If geocoding failed, restore display to show coordinates without name
+        const element = document.getElementById(`saved-coords-${slotIndex}`);
+        if (element && slotAfterGeocoding) {
+          const displayText = StorageManager.getSlotDisplayText(slotAfterGeocoding, slotIndex);
+          UIComponents.SlotRenderer.renderContent(element, displayText, slotAfterGeocoding?.labelColor);
+        }
       }
     } catch (error) {
       console.error('Error adding location name:', error);
+      // On error, restore display to show coordinates
+      try {
+        const element = document.getElementById(`saved-coords-${slotIndex}`);
+        if (element) {
+          const slot = await StorageManager.getSlot(slotIndex);
+          if (slot) {
+            const displayText = StorageManager.getSlotDisplayText(slot, slotIndex);
+            UIComponents.SlotRenderer.renderContent(element, displayText, slot?.labelColor);
+          }
+        }
+      } catch (restoreError) {
+        console.error('Error restoring slot display:', restoreError);
+      }
     }
   }
   
@@ -431,8 +491,14 @@ class CoordinateExtractorApp {
       if (this.activeSlotId && this.activeSlotId !== "saved-coords-0") {
         const element = document.getElementById(this.activeSlotId);
         if (element) {
-          const coordsSpan = element.querySelector(".slot-coords");
-          textToCopy = coordsSpan ? coordsSpan.textContent : element.textContent;
+          // Prefer coordinates from data attribute (without label) if available
+          if (element.dataset.coordinates) {
+            textToCopy = element.dataset.coordinates;
+          } else {
+            // Fallback to visible coordinates
+            const coordsSpan = element.querySelector(".slot-coords");
+            textToCopy = coordsSpan ? coordsSpan.textContent : element.textContent;
+          }
         }
       } else {
         textToCopy = UIComponents.CoordinateDisplay.getText();
@@ -461,22 +527,28 @@ class CoordinateExtractorApp {
           const slotIndex = parseInt(this.activeSlotId.split("-").pop(), 10);
           const currentSlot = await StorageManager.getSlot(slotIndex);
           
-          // For slots 1, 2, 3 add automatic naming
+          // Save coordinates immediately (without waiting for geocoder)
+          await StorageManager.setSlot(slotIndex, {
+            ...coords,
+            name: currentSlot?.name || "",
+            labelColor: currentSlot?.labelColor || "",
+            userNamed: currentSlot?.userNamed || false // Preserve userNamed if name exists
+          });
+          
+          // Update UI immediately with coordinates (without name yet)
+          const element = document.getElementById(this.activeSlotId);
+          if (element) {
+            const savedSlot = await StorageManager.getSlot(slotIndex);
+            const displayText = StorageManager.getSlotDisplayText(savedSlot, slotIndex);
+            UIComponents.SlotRenderer.renderContent(element, displayText, currentSlot?.labelColor);
+          }
+          
+          // For slots 1, 2, 3 add automatic naming in background (async, non-blocking)
           if (slotIndex > 0 && coords.lat && coords.lon) {
-            await this.addLocationName(coords, slotIndex);
-          } else {
-            await StorageManager.setSlot(slotIndex, {
-              ...coords,
-              name: currentSlot?.name || "",
-              labelColor: currentSlot?.labelColor || "",
-              userNamed: false // Reset flag when coordinates change
+            // Run geocoding in background - don't await, so coordinates are already saved publicly
+            this.addLocationName(coords, slotIndex).catch(err => {
+              console.error('Background geocoding failed:', err);
             });
-            
-            const element = document.getElementById(this.activeSlotId);
-            if (element) {
-              const displayText = StorageManager.getSlotDisplayText(await StorageManager.getSlot(slotIndex), slotIndex);
-              UIComponents.SlotRenderer.renderContent(element, displayText, currentSlot?.labelColor);
-            }
           }
         } else {
           // Display in slot 0

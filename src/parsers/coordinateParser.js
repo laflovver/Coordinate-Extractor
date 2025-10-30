@@ -175,21 +175,39 @@ class CoordinateParser {
     if (hash.includes('center=')) {
       match = hash.match(REGEX_PATTERNS.centerParam);
       if (match) {
-        const centerValue = match[1];
+        const centerValue = decodeURIComponent(match[1]);
         const parts = centerValue.split(/%2F|\//).filter(p => {
           const trimmed = p.trim();
           return trimmed !== '' && !isNaN(parseFloat(trimmed));
         });
         
         if (parts.length >= 3) {
-          // Mapbox format: lon/lat/zoom
-          return {
-            lon: parseFloat(parts[0]),
-            lat: parseFloat(parts[1]),
-            zoom: parseFloat(parts[2]),
-            bearing: parts[3] ? parseFloat(parts[3]) : 0,
-            pitch: parts[4] ? parseFloat(parts[4]) : 0
-          };
+          // Format could be zoom/lon/lat or lon/lat/zoom
+          const p0 = parseFloat(parts[0]);
+          const p1 = parseFloat(parts[1]);
+          const p2 = parseFloat(parts[2]);
+          
+          // Check if first value looks like zoom (0-25) and second looks like lon (-180 to 180)
+          // This indicates zoom/lon/lat format
+          if (p0 >= 0 && p0 <= 25 && p1 >= -180 && p1 <= 180 && p2 >= -90 && p2 <= 90) {
+            return {
+              zoom: p0,
+              lon: p1,
+              lat: p2,
+              bearing: parts[3] ? parseFloat(parts[3]) : 0,
+              pitch: parts[4] ? parseFloat(parts[4]) : 0
+            };
+          }
+          // Otherwise, try lon/lat/zoom format (Mapbox Sites format)
+          if (p0 >= -180 && p0 <= 180 && p1 >= -90 && p1 <= 90) {
+            return {
+              lon: p0,
+              lat: p1,
+              zoom: p2,
+              bearing: parts[3] ? parseFloat(parts[3]) : 0,
+              pitch: parts[4] ? parseFloat(parts[4]) : 0
+            };
+          }
         }
       }
     }
@@ -342,13 +360,45 @@ class CoordinateParser {
     if (fullUrl.includes('center=')) {
       match = fullUrl.match(REGEX_PATTERNS.centerParam);
       if (match) {
-        const centerValue = match[1];
-        const parts = centerValue.split(/[,/]/).filter(p => {
+        const centerValue = decodeURIComponent(match[1]);
+        const parts = centerValue.split(/[%2F\/]/).filter(p => {
           const trimmed = p.trim();
           return trimmed !== '' && !isNaN(parseFloat(trimmed));
         });
         
-        if (parts.length >= 2) {
+        if (parts.length >= 3) {
+          // Format could be zoom/lon/lat or lon/lat/zoom
+          // Try to determine by value ranges:
+          // - zoom is typically 0-25
+          // - lat is -90 to 90
+          // - lon is -180 to 180
+          const p0 = parseFloat(parts[0]);
+          const p1 = parseFloat(parts[1]);
+          const p2 = parseFloat(parts[2]);
+          
+          // Check if first value looks like zoom (0-25) and second looks like lon (-180 to 180)
+          // This indicates zoom/lon/lat format
+          if (p0 >= 0 && p0 <= 25 && p1 >= -180 && p1 <= 180 && p2 >= -90 && p2 <= 90) {
+            return {
+              zoom: p0,
+              lon: p1,
+              lat: p2,
+              bearing: parts[3] ? parseFloat(parts[3]) : 0,
+              pitch: parts[4] ? parseFloat(parts[4]) : 0
+            };
+          }
+          // Otherwise, try lon/lat/zoom format (Mapbox Sites format)
+          if (p0 >= -180 && p0 <= 180 && p1 >= -90 && p1 <= 90) {
+            return {
+              lon: p0,
+              lat: p1,
+              zoom: p2,
+              bearing: parts[3] ? parseFloat(parts[3]) : 0,
+              pitch: parts[4] ? parseFloat(parts[4]) : 0
+            };
+          }
+        } else if (parts.length >= 2) {
+          // Fallback: assume lon/lat format
           return {
             lon: parseFloat(parts[0]),
             lat: parseFloat(parts[1]),

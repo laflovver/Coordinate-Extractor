@@ -9,6 +9,7 @@
   "permissions": [
     "activeTab",
     "tabs",
+    "windows",
     "scripting",
     "clipboardWrite",
     "clipboardRead",
@@ -24,8 +25,8 @@
   "commands": {
     "open-extension": {
       "suggested_key": {
-        "default": "Ctrl+Shift+F",
-        "mac": "Command+Shift+F"
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
       },
       "description": "Open the extension popup"
     }

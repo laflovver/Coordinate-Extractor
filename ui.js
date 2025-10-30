@@ -798,7 +798,7 @@ const selectSlot = (slotNumber) => {
 document.addEventListener("DOMContentLoaded", () => {
   // logMessage(MESSAGES.READY, "info");
   
-  // Initialize immediately
+  // Initialize immediately - only once
   if (typeof CoordinateExtractorApp !== 'undefined') {
     const app = new CoordinateExtractorApp();
     app.init().catch(error => {
@@ -807,7 +807,25 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     // Fallback: use legacy coordinate extraction
     if (typeof extractCoordinates !== 'undefined') {
-      extractCurrentTabCoordinates();
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length === 0) {
+          logMessage("no active tab found.", "error");
+          return;
+        }
+        
+        const currentUrl = tabs[0].url;
+        if (currentUrl && !currentUrl.startsWith('chrome://') && !currentUrl.startsWith('chrome-extension://')) {
+          const coords = extractCoordinates(currentUrl);
+          if (coords) {
+            logMessage(`Coordinates extracted: ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)}, zoom ${coords.zoom}`, "success");
+            displayCoordinates(coords);
+          } else {
+            logMessage("No coordinates found in URL", "error");
+            const inner = document.getElementById("saved-coords-0");
+            if (inner) inner.textContent = "coordinates not found";
+          }
+        }
+      });
     }
   }
 
@@ -865,16 +883,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   
-  // logMessage(MESSAGES.EXECUTING_TABS_QUERY, "info");
-  
-  // Check permissions
-  if (chrome.permissions) {
-    chrome.permissions.getAll((permissions) => {
-      // logMessage(MESSAGES.PERMISSIONS + " " + JSON.stringify(permissions), "info");
-    });
-  }
-  
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  // Legacy coordinate extraction - only run if CoordinateExtractorApp is not available
+  // to avoid duplicate chrome.tabs.query calls
+  if (typeof CoordinateExtractorApp === 'undefined') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     // Check for Chrome API errors
     if (chrome.runtime.lastError) {
       // logMessage("chrome.tabs.query error: " + chrome.runtime.lastError.message, "error");
@@ -975,64 +987,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const inner = document.getElementById("saved-coords-0");
       if (inner) inner.textContent = "coordinates not found";
     }
-  });
-  
-  
-  
-  // Initialize the main application
-  console.log('Checking for CoordinateExtractorApp:', typeof CoordinateExtractorApp);
-  console.log('Checking for CoordinateParser:', typeof CoordinateParser);
-  console.log('Checking for StorageManager:', typeof StorageManager);
-  console.log('Checking for BrowserManager:', typeof BrowserManager);
-  console.log('Checking for UIComponents:', typeof UIComponents);
-  
-  // Initialize immediately
-  if (typeof CoordinateExtractorApp !== 'undefined') {
-    console.log('Initializing CoordinateExtractorApp...');
-    const app = new CoordinateExtractorApp();
-    app.init().catch(error => {
-      console.error('Failed to initialize app:', error);
-    });
-  } else {
-    console.log('CoordinateExtractorApp not available, falling back to legacy initialization');
-    
-    // Fallback: use legacy coordinate extraction
-    if (typeof extractCoordinates !== 'undefined') {
-      console.log('Using legacy extractCoordinates function');
-      // Call legacy coordinate extraction
-      extractCurrentTabCoordinates();
-    } else {
-      console.log('No coordinate extraction available');
-    }
-  }
-  
-  // Fallback function for coordinate extraction
-  function extractCurrentTabCoordinates() {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0) {
-        logMessage("no active tab found.", "error");
-        return;
-      }
-      
-      const currentUrl = tabs[0].url;
-      logMessage("active tab url: " + currentUrl, "info");
-      
-      if (currentUrl.startsWith('chrome://') || currentUrl.startsWith('chrome-extension://')) {
-        // logMessage("skipping coordinate extraction for chrome internal page", "info");
-        const inner = document.getElementById("saved-coords-0");
-        if (inner) inner.textContent = "chrome internal page";
-        return;
-      }
-      
-      const coords = extractCoordinates(currentUrl);
-      if (coords) {
-        logMessage(`Coordinates extracted: ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)}, zoom ${coords.zoom}`, "success");
-        displayCoordinates(coords);
-      } else {
-        logMessage("No coordinates found in URL", "error");
-        const inner = document.getElementById("saved-coords-0");
-        if (inner) inner.textContent = "coordinates not found";
-      }
     });
   }
 });
