@@ -165,7 +165,7 @@ chrome.commands.onCommand.addListener(async (command) => {
       }
       
       // chrome.action.openPopup() doesn't work from commands in Chrome
-      // Create a popup window instead
+      // Create a popup window (type: 'popup') which looks like extension popup (no browser UI)
       const extensionUrl = chrome.runtime.getURL('popup.html');
       console.log("Extension URL:", extensionUrl);
       
@@ -185,7 +185,7 @@ chrome.commands.onCommand.addListener(async (command) => {
         // Stop animation when focusing existing window
         stopLoadingAnimation();
       } else {
-        // Create beautiful popup window
+        // Create popup window (looks like extension popup, no browser UI)
         // Get current window position to position popup near it
         let currentWindow;
         try {
@@ -196,16 +196,21 @@ chrome.commands.onCommand.addListener(async (command) => {
           console.log("Using default window position");
         }
         
+        // Calculate position to appear near the extension icon area (top-right of browser)
+        const popupWidth = 680;
+        const popupHeight = 720;
+        const left = currentWindow.left + Math.max(0, (currentWindow.width || 1200) - popupWidth - 50);
+        const top = currentWindow.top + 50;
+        
         const popupWindow = await chrome.windows.create({
           url: extensionUrl,
-          type: 'popup',
-          width: 680,
-          height: 720,
+          type: 'popup', // This creates a window without browser UI (address bar, buttons, etc.)
+          width: popupWidth,
+          height: popupHeight,
           focused: true,
-          // Position popup in center-right of current window
-          left: currentWindow.left + (currentWindow.width || 1200) - 720,
-          top: currentWindow.top + 50,
-          state: 'normal'
+          left: left,
+          top: top,
+          // Don't set state, let it be window-like but minimal
         });
         console.log("Extension opened in popup window, window ID:", popupWindow.id);
         // Set fallback timeout to stop animation if popup doesn't send message

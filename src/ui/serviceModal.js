@@ -915,42 +915,59 @@ class ServiceModal {
         return;
       }
       
-      const key = e.key;
+      let keyNumber = null;
       
-      // Check if pressing 1-9
-      // Note: Shift+numbers produce special characters on some keyboards
-      // Shift+1='!', Shift+2='@', Shift+3='#', Shift+4='$', Shift+5='%', etc.
-      let keyNumber = key;
-      const shiftNumberMap = {
-        '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
-        '^': '6', '&': '7', '*': '8', '(': '9'
-      };
-      
-      if (shiftNumberMap[key]) {
-        keyNumber = shiftNumberMap[key];
-        console.log(`Shift+${keyNumber} detected, converted ${key} to ${keyNumber}`);
+      // Try to get number from e.code first (more reliable)
+      if (e.code && e.code.startsWith('Digit')) {
+        keyNumber = e.code.replace('Digit', '');
+      } else if (e.code && e.code.startsWith('Numpad')) {
+        keyNumber = e.code.replace('Numpad', '');
       }
       
-      if (keyNumber >= '1' && keyNumber <= '9') {
-        console.log('Processing hotkey:', keyNumber);
+      // Fallback: try to get from e.key
+      if (!keyNumber) {
+        const key = e.key;
+        
+        // Check if pressing 1-9
+        // Note: Shift+numbers produce special characters on some keyboards
+        // Shift+1='!', Shift+2='@', Shift+3='#', Shift+4='$', Shift+5='%', etc.
+        const shiftNumberMap = {
+          '!': '1', '@': '2', '#': '3', '$': '4', '%': '5',
+          '^': '6', '&': '7', '*': '8', '(': '9'
+        };
+        
+        if (shiftNumberMap[key]) {
+          keyNumber = shiftNumberMap[key];
+          console.log(`Shift+${keyNumber} detected, converted ${key} to ${keyNumber}`);
+        } else if (key >= '1' && key <= '9') {
+          keyNumber = key;
+        }
+      }
+      
+      if (keyNumber && keyNumber >= '1' && keyNumber <= '9') {
+        console.log('Processing hotkey:', keyNumber, 'e.code:', e.code, 'e.key:', e.key, 'e.shiftKey:', e.shiftKey);
         const index = parseInt(keyNumber) - 1;
         
-        // Get services in the exact order they appear in the UI
-        const buttons = this.serviceGrid.querySelectorAll('.service-btn');
-        const button = buttons[index];
+        // Get visible services order from localStorage (same as in renderServices)
+        const visibleOrder = this.getVisibleServicesOrder();
+        const serviceName = visibleOrder[index];
         
-        if (button) {
-          e.preventDefault();
-          const serviceName = button.dataset.serviceName;
+        if (serviceName) {
           const service = this.standardServices.find(s => s.name === serviceName) || 
                          this.customServices.find(s => s.name === serviceName);
           
           if (service) {
+            e.preventDefault();
+            e.stopPropagation();
             this.currentCoords = await this.getCurrentCoordinates();
             const shiftState = this.isShiftHeld || e.shiftKey;
-            console.log('Opening service:', service.name, 'isShiftHeld:', this.isShiftHeld, 'e.shiftKey:', e.shiftKey, 'final shiftState:', shiftState);
-            this.openService(service, shiftState);
+            console.log('Opening service:', service.name, 'index:', index, 'isShiftHeld:', this.isShiftHeld, 'e.shiftKey:', e.shiftKey, 'final shiftState:', shiftState);
+            await this.openService(service, shiftState);
+          } else {
+            console.warn('Service not found:', serviceName, 'at index:', index);
           }
+        } else {
+          console.warn('No service at index:', index, 'visible services:', visibleOrder.length);
         }
       }
     });
