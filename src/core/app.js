@@ -314,15 +314,26 @@ class CoordinateExtractorApp {
    * Navigation to coordinates
    */
   async handleNavigateToCoordinates() {
-    const coords = this.getActiveSlotCoordinates();
+    let coords = await this.getActiveSlotCoordinates();
+    
+    // For slot 0, always get fresh coordinates from current tab to avoid stale data
+    if (this.activeSlotId === "saved-coords-0" || !coords) {
+      // Re-extract coordinates from current tab to get latest values
+      await this.extractCurrentTabCoordinates();
+      coords = await this.getActiveSlotCoordinates();
+    }
+    
     if (!coords) {
+      UIComponents.Logger.log("No coordinates available", "error");
       return;
     }
 
     try {
       await BrowserManager.updateActiveTabWithCoordinates(coords);
+      UIComponents.Logger.log("URL updated successfully", "success");
     } catch (error) {
       console.error("Navigation error:", error);
+      UIComponents.Logger.log("Navigation error: " + error.message, "error");
     }
   }
 
@@ -579,8 +590,15 @@ class CoordinateExtractorApp {
       if (this.activeSlotId && this.activeSlotId !== "saved-coords-0") {
         const slotIndex = parseInt(this.activeSlotId.split("-").pop(), 10);
         const slot = await StorageManager.getSlot(slotIndex);
-        if (slot) {
+        if (slot && slot.lat && slot.lon) {
           coordsToUse = slot;
+        }
+      } else if (this.activeSlotId === "saved-coords-0") {
+        // For slot 0, always get fresh coordinates from current tab to avoid stale data
+        await this.extractCurrentTabCoordinates();
+        const slot0 = await StorageManager.getSlot(0);
+        if (slot0 && slot0.lat && slot0.lon) {
+          coordsToUse = slot0;
         }
       }
 
@@ -589,13 +607,11 @@ class CoordinateExtractorApp {
         coordsToUse = this.clipboardCoords;
       }
 
-      if (!coordsToUse) {
+      if (!coordsToUse || !coordsToUse.lat || !coordsToUse.lon) {
         UIComponents.Logger.log("No coordinates available", "error");
         return;
       }
 
-      // UIComponents.Logger.log("Navigating with coordinates: " + JSON.stringify(coordsToUse), "info");
-      
       const success = await BrowserManager.updateActiveTabWithCoordinates(coordsToUse);
       if (!success) {
         UIComponents.Logger.log("URL structure not supported", "error");

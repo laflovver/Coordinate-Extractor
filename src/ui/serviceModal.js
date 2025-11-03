@@ -137,13 +137,26 @@ class ServiceModal {
       // Get coordinates from active slot
       const app = window.appInstance;
       if (app && app.getActiveSlotCoordinates) {
-        const coords = app.getActiveSlotCoordinates();
+        let coords = await app.getActiveSlotCoordinates();
+        
+        // For slot 0, always get fresh coordinates from current tab to avoid stale data
+        if (app.activeSlotId === "saved-coords-0" || !coords) {
+          // Re-extract coordinates from current tab to get latest values
+          if (app.extractCurrentTabCoordinates) {
+            await app.extractCurrentTabCoordinates();
+            coords = await app.getActiveSlotCoordinates();
+          }
+        }
+        
         if (coords && coords.lat && coords.lon) {
           return coords;
         }
       }
       
-      // Fallback: get from slot 0 or extract from current tab
+      // Fallback: get fresh coordinates from current tab for slot 0
+      if (window.appInstance && window.appInstance.extractCurrentTabCoordinates) {
+        await window.appInstance.extractCurrentTabCoordinates();
+      }
       const slot = await StorageManager.getSlot(0);
       if (slot && slot.lat && slot.lon) {
         return slot;
@@ -538,11 +551,16 @@ class ServiceModal {
   /**
    * Open service in new tab
    */
-  openService(service, shiftKey = false) {
-    if (!this.currentCoords) {
+  async openService(service, shiftKey = false) {
+    // Always get fresh coordinates before opening service to avoid stale data
+    const freshCoords = await this.getCurrentCoordinates();
+    if (!freshCoords || !freshCoords.lat || !freshCoords.lon) {
       UIComponents.Logger.log("No coordinates available", "error");
       return;
     }
+    
+    // Update currentCoords with fresh values
+    this.currentCoords = freshCoords;
     
     let url = this.buildServiceUrl(service.urlTemplate, this.currentCoords);
     
