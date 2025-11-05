@@ -83,6 +83,9 @@ class CoordinateExtractorApp {
   
   /**
    * Get active slot coordinates
+   * For slots 1-3: returns coordinates from that slot
+   * For slot 0 or if active slot is empty: returns coordinates from slot 0 (fallback)
+   * @returns {Promise<Object|null>} Coordinates object or null if none found
    */
   async getActiveSlotCoordinates() {
     if (this.activeSlotId && this.activeSlotId !== "saved-coords-0") {
@@ -195,12 +198,12 @@ class CoordinateExtractorApp {
    */
   async handleCopyToClipboard() {
     try {
-      const coords = this.getActiveSlotCoordinates();
+      const coords = await this.getActiveSlotCoordinates();
       if (!coords) {
         return;
       }
 
-      const cliString = this.formatCoordinatesAsCLI(coords);
+      const cliString = CoordinateParser.formatToCli(coords);
       await navigator.clipboard.writeText(cliString);
     } catch (error) {
       console.error("Clipboard error:", error);
@@ -312,18 +315,11 @@ class CoordinateExtractorApp {
   
   /**
    * Navigation to coordinates
+   * Uses coordinates from active slot (via getActiveSlotCoordinates)
    */
   async handleNavigateToCoordinates() {
-    let coords = await this.getActiveSlotCoordinates();
-    
-    // For slot 0, always get fresh coordinates from current tab to avoid stale data
-    if (this.activeSlotId === "saved-coords-0" || !coords) {
-      // Re-extract coordinates from current tab to get latest values
-      await this.extractCurrentTabCoordinates();
-      coords = await this.getActiveSlotCoordinates();
-    }
-    
-    if (!coords) {
+    const coords = await this.getActiveSlotCoordinates();
+    if (!coords || !coords.lat || !coords.lon) {
       UIComponents.Logger.log("No coordinates available", "error");
       return;
     }
@@ -375,18 +371,11 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Get active slot coordinates
-   */
-  getActiveSlotCoordinates() {
-    const slotIndex = this.getActiveSlotIndex();
-    return StorageManager.getSlot(slotIndex);
-  }
-
-  /**
    * Get active slot index
+   * @returns {number} Slot index (0-3)
    */
   getActiveSlotIndex() {
-    return parseInt(this.activeSlotId.split('-').pop());
+    return parseInt(this.activeSlotId.split('-').pop(), 10);
   }
 
   /**
@@ -406,18 +395,9 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Format coordinates as CLI
-   */
-  formatCoordinatesAsCLI(coords) {
-    const parts = [`--lon ${coords.lon}`, `--lat ${coords.lat}`];
-    if (coords.zoom !== undefined) parts.push(`--zoom ${coords.zoom}`);
-    if (coords.bearing !== undefined) parts.push(`--bearing ${coords.bearing}`);
-    if (coords.pitch !== undefined) parts.push(`--pitch ${coords.pitch}`);
-    return parts.join(' ');
-  }
-
-  /**
-   * Parse CLI string to coordinates
+   * Parse CLI string to coordinates object
+   * @param {string} cliString - CLI formatted string
+   * @returns {Object|null} Coordinates object or null if parsing failed
    */
   parseCLIString(cliString) {
     if (typeof window !== 'undefined' && window.CliParser) {
@@ -440,10 +420,12 @@ class CoordinateExtractorApp {
   }
 
   /**
-   * Update UI
+   * Refresh UI by reloading stored coordinates
    */
   refreshUI() {
-    this.loadStoredCoordinates();
+    this.loadStoredCoordinates().catch(err => {
+      console.error("Error refreshing UI:", err);
+    });
   }
 
   /**
@@ -462,6 +444,9 @@ class CoordinateExtractorApp {
       // Save to slot 0 and display
       await StorageManager.setSlot(0, { ...coords, name: "", labelColor: "" });
       UIComponents.CoordinateDisplay.display(coords);
+      
+      // Also save to clipboard buffer for navigation
+      this.clipboardCoords = coords;
       
       // Update slot 0 display
       const slot0Element = document.getElementById("saved-coords-0");
@@ -586,23 +571,16 @@ class CoordinateExtractorApp {
       
       let coordsToUse = null;
 
-      // Get coordinates from active slot
+      // Get coordinates from active slot (only for slots 1, 2, 3)
       if (this.activeSlotId && this.activeSlotId !== "saved-coords-0") {
         const slotIndex = parseInt(this.activeSlotId.split("-").pop(), 10);
         const slot = await StorageManager.getSlot(slotIndex);
         if (slot && slot.lat && slot.lon) {
           coordsToUse = slot;
         }
-      } else if (this.activeSlotId === "saved-coords-0") {
-        // For slot 0, always get fresh coordinates from current tab to avoid stale data
-        await this.extractCurrentTabCoordinates();
-        const slot0 = await StorageManager.getSlot(0);
-        if (slot0 && slot0.lat && slot0.lon) {
-          coordsToUse = slot0;
-        }
       }
 
-      // If no coordinates in slot, use from buffer
+      // If no coordinates in slot, use from clipboard buffer
       if (!coordsToUse) {
         coordsToUse = this.clipboardCoords;
       }
@@ -859,3 +837,15 @@ if (typeof module !== 'undefined' && module.exports) {
 } else {
   window.CoordinateExtractorApp = CoordinateExtractorApp;
 }
+
+// Initialize application when DOM is ready
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof CoordinateExtractorApp !== 'undefined') {
+    const app = new CoordinateExtractorApp();
+    app.init().catch(error => {
+      console.error('Failed to initialize app:', error);
+    });
+  } else {
+    console.error('CoordinateExtractorApp is not defined');
+  }
+});

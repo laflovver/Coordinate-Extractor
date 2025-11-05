@@ -1,20 +1,11 @@
+// Icon click opens popup via manifest default_popup, no need for manual handling
+// chrome.action.onClicked is only called when default_popup is not set in manifest
+// Since we have default_popup in manifest.json, this listener won't be called
+// But keeping it empty to avoid any potential issues
 chrome.action.onClicked.addListener(async () => {
-  console.log("Extension icon clicked");
-  try {
-    await chrome.action.openPopup();
-    console.log("Popup opened successfully");
-  } catch (error) {
-    console.log("Popup not available, trying to open in new tab...", error.message);
-    try {
-      await chrome.tabs.create({ 
-        url: chrome.runtime.getURL('popup.html'),
-        active: true 
-      });
-      console.log("Extension opened in new tab");
-    } catch (tabError) {
-      console.error("Error opening extension:", tabError);
-    }
-  }
+  // Popup is handled by manifest default_popup
+  // This listener is only called if default_popup is not set
+  console.log("Extension icon clicked (popup handled by manifest)");
 });
 
 // Ensure service worker stays alive and listens for commands
@@ -151,13 +142,32 @@ chrome.commands.onCommand.addListener(async (command) => {
     // Start loading animation
     startLoadingAnimation();
     
+    const extensionUrl = chrome.runtime.getURL('popup.html');
+    
+    // Check if extension popup window is already open
+    const windows = await chrome.windows.getAll({ populate: true });
+    const existingPopup = windows.find(win => {
+      if (win.type === 'popup' && win.tabs && win.tabs.length > 0) {
+        return win.tabs.some(tab => tab.url === extensionUrl);
+      }
+      return false;
+    });
+    
+    if (existingPopup) {
+      // If popup window exists, focus it and bring to front
+      await chrome.windows.update(existingPopup.id, { focused: true });
+      console.log("Focused existing popup window");
+      stopLoadingAnimation();
+      return;
+    }
+    
+    // Try to open popup window
     try {
       // For Arc Browser compatibility: try chrome.action.openPopup first
       // Chrome doesn't support this from commands, but Arc might
       try {
         await chrome.action.openPopup();
         console.log("Popup opened via action.openPopup (Arc Browser?)");
-        // Set fallback timeout to stop animation if popup doesn't send message
         setTimeout(() => stopLoadingAnimation(), 3000);
         return;
       } catch (popupError) {
@@ -166,75 +176,20 @@ chrome.commands.onCommand.addListener(async (command) => {
       
       // chrome.action.openPopup() doesn't work from commands in Chrome
       // Create a popup window (type: 'popup') which looks like extension popup (no browser UI)
-      const extensionUrl = chrome.runtime.getURL('popup.html');
-      console.log("Extension URL:", extensionUrl);
-      
-      // Check if extension popup window is already open
-      const windows = await chrome.windows.getAll({ populate: true });
-      const existingPopup = windows.find(win => {
-        if (win.type === 'popup' && win.tabs && win.tabs.length > 0) {
-          return win.tabs.some(tab => tab.url === extensionUrl);
-        }
-        return false;
+      // Let browser position it automatically (no manual positioning)
+      const popupWindow = await chrome.windows.create({
+        url: extensionUrl,
+        type: 'popup',
+        width: 680,
+        height: 720,
+        focused: true
+        // No left/top - let browser position it
       });
-      
-      if (existingPopup) {
-        // If popup window exists, focus it and bring to front
-        await chrome.windows.update(existingPopup.id, { focused: true });
-        console.log("Focused existing popup window");
-        // Stop animation when focusing existing window
-        stopLoadingAnimation();
-      } else {
-        // Create popup window (looks like extension popup, no browser UI)
-        // Get current window position to position popup near it
-        let currentWindow;
-        try {
-          currentWindow = await chrome.windows.getCurrent();
-        } catch (e) {
-          // Fallback if getCurrent fails (Arc Browser might handle this differently)
-          currentWindow = { left: 100, top: 100, width: 1200 };
-          console.log("Using default window position");
-        }
-        
-        // Calculate position to appear near the extension icon area (top-right of browser)
-        const popupWidth = 680;
-        const popupHeight = 720;
-        const left = currentWindow.left + Math.max(0, (currentWindow.width || 1200) - popupWidth - 50);
-        const top = currentWindow.top + 50;
-        
-        const popupWindow = await chrome.windows.create({
-          url: extensionUrl,
-          type: 'popup', // This creates a window without browser UI (address bar, buttons, etc.)
-          width: popupWidth,
-          height: popupHeight,
-          focused: true,
-          left: left,
-          top: top,
-          // Don't set state, let it be window-like but minimal
-        });
-        console.log("Extension opened in popup window, window ID:", popupWindow.id);
-        // Set fallback timeout to stop animation if popup doesn't send message
-        setTimeout(() => stopLoadingAnimation(), 3000);
-      }
+      console.log("Extension opened in popup window, window ID:", popupWindow.id);
+      setTimeout(() => stopLoadingAnimation(), 3000);
     } catch (windowError) {
       console.error("Error opening extension via command:", windowError);
-      // Stop animation on error
       stopLoadingAnimation();
-      
-      // Fallback: try opening in a tab if popup fails
-      try {
-        const extensionUrl = chrome.runtime.getURL('popup.html');
-        await chrome.tabs.create({ 
-          url: extensionUrl,
-          active: true 
-        });
-        console.log("Fallback: Extension opened in new tab");
-        // Set fallback timeout for tab as well
-        setTimeout(() => stopLoadingAnimation(), 3000);
-      } catch (tabError) {
-        console.error("Error opening extension in tab:", tabError);
-        stopLoadingAnimation();
-      }
     }
   } else {
     console.log("Unknown command:", command);

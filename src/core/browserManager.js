@@ -54,6 +54,29 @@ class BrowserManager {
       }
 
       console.log("Updated URL:", updatedUrl);
+      
+      // Try to update URL via content script (no reload) first
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, {
+          action: 'updateUrl',
+          url: updatedUrl
+        });
+        
+        if (response && response.success) {
+          console.log("URL updated via History API (no reload)");
+          return true;
+        } else if (response && response.needsReload) {
+          console.log("Content script indicates reload needed, using tabs.update");
+          // Fallback to reload if content script says it's needed
+        } else {
+          console.log("Content script update failed, using tabs.update");
+        }
+      } catch (messageError) {
+        // Content script might not be loaded or not available (e.g., chrome:// pages)
+        console.log("Content script not available, using tabs.update:", messageError.message);
+      }
+      
+      // Fallback: use tabs.update (will reload page)
       await chrome.tabs.update(tab.id, { url: updatedUrl });
       return true;
     } catch (error) {
@@ -160,7 +183,12 @@ class BrowserManager {
 
   static _createMapboxRule(currentUrl, mainPart, coords) {
     return {
-      match: (url) => (url.hostname.includes("mapbox.com") || url.hostname.includes("api.mapbox.com")) && url.hash,
+      match: (url) => {
+        // Match Mapbox URLs but NOT if hash contains query parameters (like ?center=)
+        // or if it's a Mapbox Sites URL (those use center= parameter)
+        if (url.hostname.includes("sites.mapbox.com")) return false;
+        return (url.hostname.includes("mapbox.com") || url.hostname.includes("api.mapbox.com")) && url.hash && !url.hash.includes('?');
+      },
       transform: (url) => {
         const cleanHash = url.hash.replace(/^#\/?/, "");
         const segments = cleanHash.split("/");
@@ -207,15 +235,45 @@ class BrowserManager {
     return {
       match: (url) => url.hash.includes("center=") || url.search.includes("center="),
       transform: (url) => {
-        // Check if it's Mapbox Sites format (lon/lat/zoom)
-        const hostname = url.hostname;
-        if (hostname.includes("sites.mapbox.com")) {
-          // Mapbox Sites uses lon/lat/zoom format
-          return currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.lon}%2F${coords.lat}%2F${coords.zoom}`);
-        } else {
-          // Default format: zoom/lon/lat (as in bookmarklet)
-          return currentUrlStr.replace(/(center=)[^&]+/, `$1${coords.zoom}/${coords.lon}/${coords.lat}`);
+        // Check the original format in the URL to preserve it
+        const centerMatch = currentUrlStr.match(/center=([^&]+)/);
+        
+        if (centerMatch) {
+          const originalCenter = decodeURIComponent(centerMatch[1]);
+          const parts = originalCenter.split(/[%2F\/]/).filter(p => p.trim() !== '');
+          
+          let newCenterValue;
+          
+          if (parts.length >= 3) {
+            const p0 = parseFloat(parts[0]);
+            const p1 = parseFloat(parts[1]);
+            const p2 = parseFloat(parts[2]);
+            
+            // Determine format: zoom/lon/lat if first is 0-25 and second is -180 to 180
+            if (p0 >= 0 && p0 <= 25 && p1 >= -180 && p1 <= 180 && p2 >= -90 && p2 <= 90) {
+              // Format is zoom/lon/lat - preserve this format
+              newCenterValue = `${coords.zoom}%2F${coords.lon}%2F${coords.lat}`;
+            } else if (p0 >= -180 && p0 <= 180 && p1 >= -90 && p1 <= 90) {
+              // Format is lon/lat/zoom - preserve this format
+              newCenterValue = `${coords.lon}%2F${coords.lat}%2F${coords.zoom}`;
+            } else {
+              // Default: use zoom/lon/lat format
+              newCenterValue = `${coords.zoom}%2F${coords.lon}%2F${coords.lat}`;
+            }
+          } else {
+            // Default: use zoom/lon/lat format for unknown cases
+            newCenterValue = `${coords.zoom}%2F${coords.lon}%2F${coords.lat}`;
+          }
+          
+          // Replace center parameter value while preserving everything else
+          // Match center= followed by value until & or end of string/hash
+          // This preserves the rest of the URL structure (hash fragments, other parameters, etc.)
+          return currentUrlStr.replace(/center=([^&]+)/, `center=${newCenterValue}`);
         }
+        
+        // If center parameter doesn't exist, add it (but this shouldn't happen if match is true)
+        // Default: use zoom/lon/lat format for unknown cases
+        return currentUrlStr.replace(/center=([^&]+)/, `center=${coords.zoom}%2F${coords.lon}%2F${coords.lat}`);
       }
     };
   }
@@ -224,8 +282,12 @@ class BrowserManager {
     return {
       match: (url) => {
         // Match universal hash format: #zoom/lat/lon or #zoom/lat/lon/bearing/pitch
+        // But NOT if hash contains query parameters (like ?center=)
+        if (!url.hash) return false;
+        if (url.hash.includes('?')) return false; // Don't match if hash has query params
+        
         const hashPattern = /#\d+\.?\d*\/-?\d+\.?\d*\/-?\d+\.?\d*/;
-        return url.hash && hashPattern.test(url.hash);
+        return hashPattern.test(url.hash);
       },
       transform: (url) => {
         const cleanHash = url.hash.replace(/^#\/?/, "");

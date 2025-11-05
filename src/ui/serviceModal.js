@@ -16,7 +16,7 @@ class ServiceModal {
     // Standard services configuration
     this.standardServices = [
       { name: 'Mapbox Standard', urlTemplate: 'https://labs.mapbox.com/standard-style/#{{zoom}}/{{lat}}/{{lon}}', color: '#1A73E8', backgroundImage: 'https://labs.mapbox.com/favicon.ico' },
-      { name: '3D Buildings Box', urlTemplate: 'https://hey.mapbox.com/3D-Buildings-Box/#{{zoom}}/{{lat}}/{{lon}}/{{bearing}}/{{pitch}}', color: '#FF9800', backgroundImage: 'file:///Users/yauhenitabolich/Downloads/mapbox-pin-star.png' },
+      { name: '3D Buildings Box', urlTemplate: 'https://hey.mapbox.com/3D-Buildings-Box/#{{zoom}}/{{lat}}/{{lon}}/{{bearing}}/{{pitch}}', color: '#FF9800', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
       { name: 'Labs HD Roads', urlTemplate: 'https://labs.mapbox.com/hd-roads/?lightPreset=satellite#{{zoom}}/{{lat}}/{{lon}}/{{bearing}}/{{pitch}}', color: '#9C27B0', backgroundImage: 'https://labs.mapbox.com/favicon.ico' },
       { name: 'HD Roads Prod', urlTemplate: 'https://console.mapbox.com/studio/tilesets/mapbox.hd-road-v1-bounded/#{{zoom}}/{{lat}}/{{lon}}', color: '#00BCD4', backgroundImage: 'https://www.mapbox.com/favicon.ico', isTileset: true, altUrlTemplate: 'https://console.mapbox.com/studio/tilesets/mapbox.hd-road-v1-bounded-demo/#{{zoom}}/{{lat}}/{{lon}}/{{bearing}}', hasShiftModifier: true },
       { name: '3DLN Demo Style', urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox-3dln/mbx-3d-line-navigation-demo-style.html?title=view&access_token=pk.eyJ1IjoibWFwYm94LTNkbG4iLCJhIjoiY200djloOGQ2MDBmNDJpc2J5OHVtdDVkNCJ9.-Lbyn-czRBlAxwl-yNWdTg&zoomwheel=true&fresh=true#{{zoom}}/{{lat}}/{{lon}}', color: '#E91E63', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
@@ -599,7 +599,7 @@ class ServiceModal {
       // Use Chrome Tabs API instead of window.open for better control
       chrome.tabs.create({ url: url, active: true });
       UIComponents.Logger.log(`Opening ${service.name}`, "success");
-      this.close();
+      // Note: Service modal doesn't need to be closed - it's not a modal, just a grid of services
     } else {
       UIComponents.Logger.log("Failed to build URL", "error");
     }
