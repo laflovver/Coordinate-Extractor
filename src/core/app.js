@@ -337,14 +337,8 @@ class CoordinateExtractorApp {
    * Slot editing
    */
   handleEditSlot() {
-    const slotIndex = this.getActiveSlotIndex();
-    if (slotIndex === 0) return; // Slot 0 is not editable
-
-    const slotId = `saved-coords-${slotIndex}`;
-    const slotElement = document.getElementById(slotId);
-    if (slotElement) {
-      UIComponents.startSlotEdit(slotElement, slotIndex);
-    }
+    // Use the same method as the hotkey handler
+    this.editActiveSlotLabel();
   }
 
   /**
@@ -695,9 +689,9 @@ class CoordinateExtractorApp {
   editActiveSlotLabel() {
     const activeSlot = document.querySelector(".saved-slot-item.selected-saved");
     if (activeSlot && activeSlot.id !== "slot-saved-coords-0") {
-      const editIcon = activeSlot.querySelector(".edit-icon");
-      if (editIcon) {
-        editIcon.click();
+      const editBtn = activeSlot.querySelector(".edit-btn");
+      if (editBtn) {
+        editBtn.click();
       }
     }
   }
@@ -713,35 +707,35 @@ class CoordinateExtractorApp {
       }
     });
 
-    // Setup handlers for edit icons
-    document.querySelectorAll(".saved-slot-item .edit-icon").forEach((icon) => {
-      const slot = icon.closest(".saved-slot-item");
+    // Setup handlers for edit buttons
+    document.querySelectorAll(".saved-slot-item .edit-btn").forEach((btn) => {
+      const slot = btn.closest(".saved-slot-item");
       
-      // Hide icon for slot 0
+      // Hide button for slot 0
       if (slot && slot.id === "slot-saved-coords-0") {
-        icon.style.display = "none";
+        btn.style.display = "none";
         return;
       }
 
-      icon.addEventListener("click", (e) => {
+      btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        this.startEditingSlotLabel(icon, slot);
+        this.startEditingSlotLabel(btn, slot);
       });
     });
   }
 
   /**
    * Start slot label editing process
-   * @param {HTMLElement} icon - Edit icon
+   * @param {HTMLElement} btn - Edit button
    * @param {HTMLElement} slot - Slot element
    */
-  startEditingSlotLabel(icon, slot) {
+  startEditingSlotLabel(btn, slot) {
     if (!slot || slot.querySelector(".label-input")) return;
 
-    // Icon animation
-    icon.classList.add("edit-animate");
-    icon.addEventListener("animationend", () => {
-      icon.classList.remove("edit-animate");
+    // Button animation
+    btn.classList.add("edit-animate");
+    btn.addEventListener("animationend", () => {
+      btn.classList.remove("edit-animate");
     }, { once: true });
 
     this.hotkeysDisabled = true;
@@ -753,60 +747,78 @@ class CoordinateExtractorApp {
     const labelSpan = inner.querySelector(".slot-label");
     if (labelSpan) {
       currentLabel = labelSpan.textContent.replace(" - ", "");
-    } else if (icon.dataset.label) {
-      currentLabel = icon.dataset.label;
+    } else if (btn.dataset.label) {
+      currentLabel = btn.dataset.label;
     }
 
-    // Create input field
+    // Store original content to restore if needed
+    const originalContent = inner.innerHTML;
+    inner.dataset.originalContent = originalContent;
+    
+    // Get label color or generate new one
+    let labelColor = btn.dataset.labelColor;
+    if (!labelColor) {
+      labelColor = UIComponents.Utils.getRandomReadableColor();
+      btn.dataset.labelColor = labelColor;
+    }
+    
+    // Create input field inside slot-inner container
     const input = document.createElement("input");
     input.type = "text";
     input.value = currentLabel;
+    input.classList.add("label-input");
     
-    const randomColor = UIComponents.Utils.getRandomReadableColor();
-    icon.dataset.labelColor = randomColor;
-    
+    // Style input to match slot-inner content
     Object.assign(input.style, {
-      position: "absolute",
-      left: "20px",
-      top: "50%",
-      transform: "translateY(-50%)",
-      width: "60px",
-      padding: "2px",
-      fontSize: "14px",
+      width: "100%",
+      height: "100%",
+      padding: "var(--space-md)",
+      paddingRight: "120px",
+      background: "var(--white)",
+      border: "1px solid var(--primary)",
+      borderRadius: "var(--border-radius)",
+      fontFamily: "'Roboto Mono', monospace",
+      fontSize: "11px",
+      color: labelColor,
+      outline: "none",
       boxSizing: "border-box",
-      zIndex: "10",
-      color: randomColor
+      margin: "0",
+      position: "relative"
     });
     
-    input.classList.add("label-input");
-    slot.insertBefore(input, inner);
+    // Replace inner content with input
+    inner.innerHTML = "";
+    inner.appendChild(input);
     input.focus();
-    input.setSelectionRange(0, 0);
+    input.setSelectionRange(0, input.value.length);
 
     // Handle edit completion
     const finishEditing = async () => {
       const newLabel = input.value.trim();
-      icon.dataset.label = newLabel;
+      btn.dataset.label = newLabel;
       
       const slotIndex = parseInt(inner.id.split("-").pop(), 10);
-      await StorageManager.updateSlotLabel(slotIndex, newLabel, icon.dataset.labelColor);
+      await StorageManager.updateSlotLabel(slotIndex, newLabel, btn.dataset.labelColor);
       
-      // Redraw slot
-      const slot = await StorageManager.getSlot(slotIndex);
-      if (slot) {
-        const displayText = StorageManager.getSlotDisplayText(slot, slotIndex);
-        UIComponents.SlotRenderer.renderContent(inner, displayText, icon.dataset.labelColor);
+      // Redraw slot with new label
+      const slotData = await StorageManager.getSlot(slotIndex);
+      if (slotData) {
+        const displayText = StorageManager.getSlotDisplayText(slotData, slotIndex);
+        UIComponents.SlotRenderer.renderContent(inner, displayText, btn.dataset.labelColor);
       }
       
-      if (slot.contains(input)) {
-        slot.removeChild(input);
-      }
       this.hotkeysDisabled = false;
     };
 
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        e.preventDefault();
         finishEditing();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        // Restore original content
+        inner.innerHTML = originalContent;
+        this.hotkeysDisabled = false;
       }
     });
 

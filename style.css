@@ -656,9 +656,10 @@ button {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
+  right: 54px; /* Stop before edit button (right: 54px) */
   bottom: 0;
   padding: var(--space-md);
+  padding-right: var(--space-xs); /* Small padding before edit button */
   background: var(--white);
   border-radius: var(--border-radius);
   font-family: 'Roboto Mono', monospace;
@@ -675,7 +676,6 @@ button {
   overflow-y: hidden;
   text-overflow: unset;
   min-width: 0; /* Allow flex item to shrink */
-  width: 100%;
   box-sizing: border-box;
   /* Native scroll behavior like cli-output */
   scroll-behavior: auto;
@@ -983,19 +983,25 @@ button {
 
 /* === LABEL INPUT === */
 .label-input {
-  position: absolute;
-  left: var(--space-md);
-  right: 60px;
-  height: 20px;
-  padding: var(--space-xs) var(--space-sm);
+  width: 100%;
+  height: 100%;
+  padding: var(--space-md);
+  padding-right: 120px;
   background: var(--white);
   border: 1px solid var(--primary);
   border-radius: var(--border-radius);
   font-family: 'Roboto Mono', monospace;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text);
   outline: none;
-  z-index: 10;
+  box-sizing: border-box;
+  margin: 0;
+  position: relative;
+}
+
+/* Slot 0 input has less padding (no edit button) */
+#slot-saved-coords-0 .label-input {
+  padding-right: 50px;
 }
 
 /* === SCROLL BOUNCE EFFECT === */
