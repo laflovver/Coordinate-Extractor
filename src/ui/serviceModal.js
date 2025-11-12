@@ -22,7 +22,7 @@ class ServiceModal {
       { name: '3DLN Demo Style', urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox-3dln/mbx-3d-line-navigation-demo-style.html?title=view&access_token=pk.eyJ1IjoibWFwYm94LTNkbG4iLCJhIjoiY200djloOGQ2MDBmNDJpc2J5OHVtdDVkNCJ9.-Lbyn-czRBlAxwl-yNWdTg&zoomwheel=true&fresh=true#{{zoom}}/{{lat}}/{{lon}}', color: '#E91E63', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
       { name: 'Google Maps', urlTemplate: 'https://www.google.com/maps/@{{lat}},{{lon}},{{zoom}}z', color: '#4285F4', backgroundImage: 'https://www.google.com/favicon.ico', altUrlTemplate: 'https://earth.google.com/web/@{{lat}},{{lon}},{{zoom}}a,0y,0h,0t,0r', hasShiftModifier: true },
       { name: 'Direction Debug', urlTemplate: 'https://console.mapbox.com/directions-debug/#map={{lon}},{{lat}},{{zoom}}z', color: '#00BCD4', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
-      { name: '3D Model Slots', urlTemplate: 'https://sites.mapbox.com/mbx-3dbuilding-tools-staging/#/model-slots/2022-10-10/review/?center={{zoom}}%2F{{lon}}%2F{{lat}}&jira_summary=&jira_status=&jira_issue_id=&jira_labels=&jira_fix_versions=&env=&city=&iso_3166_1_alpha3=&lights=&colorization=', color: '#9C27B0', backgroundImage: 'https://www.mapbox.com/favicon.ico' },
+      { name: '3D Model Slots', urlTemplate: 'https://sites.mapbox.com/mbx-3dbuilding-tools-staging/#/model-slots/2022-10-10/map/?center={{zoom}}%2F{{lon}}%2F{{lat}}&jira_summary=&jira_status=&jira_issue_id=&jira_labels=&jira_fix_versions=&env=prod&city=&iso_3166_1_alpha3=&lights=day&colorization=', color: '#9C27B0', backgroundImage: 'https://www.mapbox.com/favicon.ico', altUrlTemplate: 'https://sites.mapbox.com/mbx-3dbuilding-tools-staging/#/footprint/?center={{zoom}}%2F{{lon}}%2F{{lat}}', hasShiftModifier: true },
       { name: 'OpenStreetMap', urlTemplate: 'https://www.openstreetmap.org/#map={{zoom}}/{{lat}}/{{lon}}', color: '#7EBC6F', backgroundImage: 'https://www.openstreetmap.org/favicon.ico' },
       { name: 'Bing Maps', urlTemplate: 'https://www.bing.com/maps?cp={{lat}}~{{lon}}&lvl={{zoom}}', color: '#008373', backgroundImage: 'https://www.bing.com/favicon.ico' },
       { name: 'Yandex Maps', urlTemplate: 'https://yandex.by/maps/?ll={{lon}},{{lat}}&z={{zoom}}', color: '#FF0000', backgroundImage: 'https://yandex.by/favicon.ico' },
@@ -115,6 +115,14 @@ class ServiceModal {
           nameSpan.textContent = shiftHeld ? 'Google Earth' : 'Google Maps';
         }
       }
+      
+      // Update 3D Model Slots name
+      if (serviceName === '3D Model Slots') {
+        const nameSpan = btn.querySelector('span:not(.service-hotkey-badge):not(.service-delete-btn)');
+        if (nameSpan) {
+          nameSpan.textContent = shiftHeld ? 'Footprint' : '3D Model Slots';
+        }
+      }
     });
   }
   
@@ -131,40 +139,41 @@ class ServiceModal {
   
   /**
    * Get current coordinates
+   * Always gets fresh coordinates from current tab to avoid stale data
    */
   async getCurrentCoordinates() {
     try {
-      // Get coordinates from active slot
       const app = window.appInstance;
+      
+      // Always re-extract coordinates from current tab to get latest values
+      // This ensures we don't use stale coordinates from previous pages
+      if (app && app.extractCurrentTabCoordinates) {
+        await app.extractCurrentTabCoordinates();
+      }
+      
+      // Get coordinates from active slot after refreshing
       if (app && app.getActiveSlotCoordinates) {
-        let coords = await app.getActiveSlotCoordinates();
-        
-        // For slot 0, always get fresh coordinates from current tab to avoid stale data
-        if (app.activeSlotId === "saved-coords-0" || !coords) {
-          // Re-extract coordinates from current tab to get latest values
-          if (app.extractCurrentTabCoordinates) {
-            await app.extractCurrentTabCoordinates();
-            coords = await app.getActiveSlotCoordinates();
-          }
-        }
+        const coords = await app.getActiveSlotCoordinates();
         
         if (coords && coords.lat && coords.lon) {
+          UIComponents.Logger.log(`Using coordinates from active slot: ${coords.lat}, ${coords.lon}`, "info");
           return coords;
         }
       }
       
-      // Fallback: get fresh coordinates from current tab for slot 0
-      if (window.appInstance && window.appInstance.extractCurrentTabCoordinates) {
-        await window.appInstance.extractCurrentTabCoordinates();
-      }
+      // Fallback: try to get from slot 0
       const slot = await StorageManager.getSlot(0);
       if (slot && slot.lat && slot.lon) {
+        UIComponents.Logger.log(`Using coordinates from slot 0: ${slot.lat}, ${slot.lon}`, "info");
         return slot;
       }
       
+      // No coordinates found - log warning
+      UIComponents.Logger.log("No coordinates available. Please navigate to a page with coordinates in the URL.", "error");
       return null;
     } catch (error) {
       console.error('Error getting coordinates:', error);
+      UIComponents.Logger.log(`Error getting coordinates: ${error.message}`, "error");
       return null;
     }
   }
@@ -435,7 +444,7 @@ class ServiceModal {
     btn.dataset.serviceName = service.name;
     
     // Mark buttons with additional functionality (Shift modifier)
-    if (service.name === '3D Buildings Box' || service.hasShiftModifier) {
+    if (service.name === '3D Buildings Box' || service.name === '3D Model Slots' || service.hasShiftModifier) {
       btn.classList.add('has-shift-modifier');
     }
     
@@ -555,12 +564,14 @@ class ServiceModal {
     // Always get fresh coordinates before opening service to avoid stale data
     const freshCoords = await this.getCurrentCoordinates();
     if (!freshCoords || !freshCoords.lat || !freshCoords.lon) {
-      UIComponents.Logger.log("No coordinates available", "error");
+      UIComponents.Logger.log(`Cannot open ${service.name}: No coordinates available. Please navigate to a page with coordinates in the URL.`, "error");
       return;
     }
     
     // Update currentCoords with fresh values
     this.currentCoords = freshCoords;
+    
+    UIComponents.Logger.log(`Opening ${service.name} with coordinates: ${freshCoords.lat}, ${freshCoords.lon}, zoom: ${freshCoords.zoom}`, "info");
     
     let url = this.buildServiceUrl(service.urlTemplate, this.currentCoords);
     
@@ -586,6 +597,13 @@ class ServiceModal {
       console.log('Opening Google Earth instead of Google Maps');
       url = this.buildServiceUrl(service.altUrlTemplate, this.currentCoords);
       console.log('Google Earth URL:', url);
+    }
+    
+    // Special handling for 3D Model Slots with Shift key - open Footprint
+    if (service.name === '3D Model Slots' && shiftKey && service.altUrlTemplate) {
+      console.log('Opening Footprint instead of 3D Model Slots');
+      url = this.buildServiceUrl(service.altUrlTemplate, this.currentCoords);
+      console.log('Footprint URL:', url);
     }
     
     // Handle custom services with alternative URL
@@ -959,7 +977,7 @@ class ServiceModal {
           if (service) {
             e.preventDefault();
             e.stopPropagation();
-            this.currentCoords = await this.getCurrentCoordinates();
+            // getCurrentCoordinates is called inside openService, no need to call it here
             const shiftState = this.isShiftHeld || e.shiftKey;
             console.log('Opening service:', service.name, 'index:', index, 'isShiftHeld:', this.isShiftHeld, 'e.shiftKey:', e.shiftKey, 'final shiftState:', shiftState);
             await this.openService(service, shiftState);

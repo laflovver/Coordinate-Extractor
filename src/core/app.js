@@ -42,7 +42,9 @@ class CoordinateExtractorApp {
       
       // Notify background that UI is ready (this will stop loading animation)
       // We send this early so user sees popup is responsive
-      if (chrome.runtime && chrome.runtime.sendMessage) {
+      // Use a flag to prevent duplicate messages
+      if (chrome.runtime && chrome.runtime.sendMessage && !this._popupReadySent) {
+        this._popupReadySent = true;
         // Use setTimeout to ensure message is sent after popup is fully visible
         setTimeout(() => {
           chrome.runtime.sendMessage('popup-ready').catch(() => {
@@ -74,8 +76,9 @@ class CoordinateExtractorApp {
       
     } catch (error) {
       console.error("App initialization error:", error);
-      // Still notify that initialization attempt completed
-      if (chrome.runtime && chrome.runtime.sendMessage) {
+      // Still notify that initialization attempt completed (only if not already sent)
+      if (chrome.runtime && chrome.runtime.sendMessage && !this._popupReadySent) {
+        this._popupReadySent = true;
         chrome.runtime.sendMessage('popup-ready').catch(() => {});
       }
     }
@@ -429,6 +432,7 @@ class CoordinateExtractorApp {
     const currentUrl = await BrowserManager.getActiveTabUrl();
     
     if (!currentUrl) {
+      UIComponents.Logger.log("Could not get active tab URL", "warning");
       return;
     }
 
@@ -449,12 +453,15 @@ class CoordinateExtractorApp {
         UIComponents.SlotRenderer.renderContent(slot0Element, cliString);
       }
       
+      UIComponents.Logger.log(`Coordinates extracted: ${coords.lat}, ${coords.lon}, zoom: ${coords.zoom}`, "success");
+      
       // Slot 0 should not auto-determine location name
     } else {
       const slot0Element = document.getElementById("saved-coords-0");
       if (slot0Element) {
         slot0Element.textContent = "Coordinates not found";
       }
+      UIComponents.Logger.log(`Could not extract coordinates from URL: ${currentUrl}`, "warning");
     }
   }
 

@@ -165,8 +165,13 @@ class CoordinateParser {
         lon: parseFloat(match[3])
       };
       
-      if (match[4]) result.bearing = parseFloat(match[4]);
-      if (match[5]) result.pitch = parseFloat(match[5]);
+      // Include bearing and pitch if they are present in URL (including 0)
+      if (match[4] !== undefined && match[4] !== null && match[4] !== '') {
+        result.bearing = parseFloat(match[4]);
+      }
+      if (match[5] !== undefined && match[5] !== null && match[5] !== '') {
+        result.pitch = parseFloat(match[5]);
+      }
       
       return result;
     }
@@ -478,11 +483,11 @@ class CoordinateParser {
       zoom: coords.zoom || 0
     };
     
-    // Only add bearing and pitch if they exist and are non-zero
-    if (coords.bearing && coords.bearing !== 0) {
+    // Add bearing and pitch if they are defined (including 0, which is a valid value)
+    if (coords.bearing !== undefined && coords.bearing !== null) {
       normalized.bearing = coords.bearing;
     }
-    if (coords.pitch && coords.pitch !== 0) {
+    if (coords.pitch !== undefined && coords.pitch !== null) {
       normalized.pitch = coords.pitch;
     }
     

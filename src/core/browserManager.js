@@ -196,12 +196,17 @@ class BrowserManager {
         // Build hash based on available coordinates
         let hash = `#${coords.zoom}/${coords.lat}/${coords.lon}`;
         
-        // Only add bearing and pitch if they exist in the original URL or are non-zero
-        if (segments.length >= 4 || (coords.bearing && coords.bearing !== 0)) {
-          hash += `/${coords.bearing || 0}`;
+        // Add bearing and pitch if they exist in the original URL or in coords (including 0)
+        const hasOriginalBearing = segments.length >= 4;
+        const hasOriginalPitch = segments.length >= 5;
+        const hasCoordsBearing = coords.bearing !== undefined && coords.bearing !== null;
+        const hasCoordsPitch = coords.pitch !== undefined && coords.pitch !== null;
+        
+        if (hasOriginalBearing || hasCoordsBearing) {
+          hash += `/${coords.bearing !== undefined && coords.bearing !== null ? coords.bearing : (parseFloat(segments[3]) || 0)}`;
         }
-        if (segments.length >= 5 || (coords.pitch && coords.pitch !== 0)) {
-          hash += `/${coords.pitch || 0}`;
+        if (hasOriginalPitch || hasCoordsPitch) {
+          hash += `/${coords.pitch !== undefined && coords.pitch !== null ? coords.pitch : (parseFloat(segments[4]) || 0)}`;
         }
         
         return mainPart + hash;
@@ -260,9 +265,30 @@ class BrowserManager {
               // Default: use zoom/lon/lat format
               newCenterValue = `${coords.zoom}%2F${coords.lon}%2F${coords.lat}`;
             }
+            
+            // Add bearing and pitch if they exist in original URL or in coords
+            const hasOriginalBearing = parts.length >= 4;
+            const hasOriginalPitch = parts.length >= 5;
+            const hasCoordsBearing = coords.bearing !== undefined && coords.bearing !== null;
+            const hasCoordsPitch = coords.pitch !== undefined && coords.pitch !== null;
+            
+            if (hasOriginalBearing || hasCoordsBearing) {
+              newCenterValue += `%2F${coords.bearing !== undefined && coords.bearing !== null ? coords.bearing : (parts[3] || 0)}`;
+            }
+            if (hasOriginalPitch || hasCoordsPitch) {
+              newCenterValue += `%2F${coords.pitch !== undefined && coords.pitch !== null ? coords.pitch : (parts[4] || 0)}`;
+            }
           } else {
             // Default: use zoom/lon/lat format for unknown cases
             newCenterValue = `${coords.zoom}%2F${coords.lon}%2F${coords.lat}`;
+            
+            // Add bearing and pitch if they exist in coords
+            if (coords.bearing !== undefined && coords.bearing !== null) {
+              newCenterValue += `%2F${coords.bearing}`;
+            }
+            if (coords.pitch !== undefined && coords.pitch !== null) {
+              newCenterValue += `%2F${coords.pitch}`;
+            }
           }
           
           // Replace center parameter value while preserving everything else
@@ -273,7 +299,14 @@ class BrowserManager {
         
         // If center parameter doesn't exist, add it (but this shouldn't happen if match is true)
         // Default: use zoom/lon/lat format for unknown cases
-        return currentUrlStr.replace(/center=([^&]+)/, `center=${coords.zoom}%2F${coords.lon}%2F${coords.lat}`);
+        let defaultCenter = `${coords.zoom}%2F${coords.lon}%2F${coords.lat}`;
+        if (coords.bearing !== undefined && coords.bearing !== null) {
+          defaultCenter += `%2F${coords.bearing}`;
+        }
+        if (coords.pitch !== undefined && coords.pitch !== null) {
+          defaultCenter += `%2F${coords.pitch}`;
+        }
+        return currentUrlStr.replace(/center=([^&]+)/, `center=${defaultCenter}`);
       }
     };
   }
@@ -296,12 +329,17 @@ class BrowserManager {
         // Build new hash
         let hash = `#${coords.zoom}/${coords.lat}/${coords.lon}`;
         
-        // Preserve bearing and pitch if they existed in original URL
-        if (segments.length >= 4 || (coords.bearing && coords.bearing !== 0)) {
-          hash += `/${coords.bearing || 0}`;
+        // Preserve bearing and pitch if they existed in original URL or in coords (including 0)
+        const hasOriginalBearing = segments.length >= 4;
+        const hasOriginalPitch = segments.length >= 5;
+        const hasCoordsBearing = coords.bearing !== undefined && coords.bearing !== null;
+        const hasCoordsPitch = coords.pitch !== undefined && coords.pitch !== null;
+        
+        if (hasOriginalBearing || hasCoordsBearing) {
+          hash += `/${coords.bearing !== undefined && coords.bearing !== null ? coords.bearing : (parseFloat(segments[3]) || 0)}`;
         }
-        if (segments.length >= 5 || (coords.pitch && coords.pitch !== 0)) {
-          hash += `/${coords.pitch || 0}`;
+        if (hasOriginalPitch || hasCoordsPitch) {
+          hash += `/${coords.pitch !== undefined && coords.pitch !== null ? coords.pitch : (parseFloat(segments[4]) || 0)}`;
         }
         
         return mainPart + hash;
